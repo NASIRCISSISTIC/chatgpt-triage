@@ -33,7 +33,7 @@
       var speed = Number(params.get("speed")) || 4;
       // Pretend to be a userscript manager so Triage shows its launcher button.
       window.GM_info = { script: { name: "Triage", version: "demo" } };
-      window.__TRIAGE_TEST__ = { timeScale: 1 / speed, demo: true, expose: params.has("expose") || params.has("scene") };
+      window.__TRIAGE_TEST__ = { timeScale: 1 / speed, demo: true, shot: params.has("scene"), expose: params.has("expose") || params.has("scene") };
       var theme = params.get("theme") || localStorage.getItem("triage-demo:theme");
       if (theme === "dark" || (!theme && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
         document.documentElement.className = "dark";

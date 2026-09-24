@@ -100,12 +100,12 @@ The [`demo/`](demo) folder is a stand-in for chatgpt.com with a fake account of 
 
 | Add to the demo URL | Simulates |
 | --- | --- |
-| `?ratelimit=on&max=6&window=30` | "Too many requests" after 6 requests in 30 seconds, with a Retry-After header |
+| `?ratelimit=on&max=6&window=30` | "Too many requests" after 6 requests in 30 seconds, with a Retry-After header. Like every wait in the demo, it runs at the demo's speed. |
 | `?ratelimit=noheader` | The same, without saying how long to wait |
 | `?expire=30` | Sign-in tokens that expire every 30 seconds |
 | `?fail=0.2` | 20% of changes failing with a server error |
 | `?ghost=0.3` | 30% of changes reporting success without taking effect |
-| `?speed=50` | Waits running 50 times faster (the demo defaults to 4) |
+| `?speed=50` | Every wait, including ChatGPT's, runs 50 times faster. The demo defaults to 4× and says so in its footer; `?speed=1` runs at real speed. |
 
 To run it locally, serve the folder and open the demo:
 

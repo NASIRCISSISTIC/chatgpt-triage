@@ -69,6 +69,11 @@
     staleBeat: 20 * SEC, // a run with no heartbeat for this long is treated as interrupted
   };
   const scaled = (ms) => Math.round(ms * SCALE);
+  // The demo fast-forwards time. Pace figures then show what you actually see, with the real figure beside it.
+  const SPEEDUP = Math.round(1 / SCALE);
+  const paceHere = (gap) => (SCALE === 1 ? `${gap}s` : `${+(gap * SCALE).toFixed(1)}s`);
+  const paceNote = (gap) => (SCALE === 1 ? "" : ` in this demo (${gap}s on chatgpt.com)`);
+  const timeLeft = (secs) => (secs < 60 ? "Under a minute" : `About ${plural(Math.round(secs / 60), "minute")}`);
 
   const ACTION = {
     delete: { label: "Delete", verb: "Deleting", past: "Deleted", key: "D", icon: "trash" },
@@ -1263,6 +1268,7 @@
     .foot .state.bad .dot { background: var(--red); }
     .foot .status { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .foot .links { margin-left: auto; display: flex; gap: 2px; }
+    .demo-tag { flex-shrink: 0; padding: 2px 8px; border-radius: 6px; background: var(--fill); color: var(--fg2); white-space: nowrap; }
     .foot .btn { height: 26px; padding: 0 8px; font-size: 12px; color: var(--fg3); }
     .foot .btn:hover:not(:disabled) { color: var(--fg); }
     .foot .btn.on { color: var(--fg); background: var(--fill); }
@@ -1661,7 +1667,10 @@
     el.activityBtn = h("button", { class: "btn", type: "button", onclick: () => toggleDrawer("activity") }, "Activity");
     el.networkBtn = h("button", { class: "btn", type: "button", title: "Every request Triage has sent", onclick: () => toggleDrawer("network") }, "Network");
     el.drawerEl = h("div", { class: "drawer", hidden: true });
-    const foot = h("div", { class: "foot" }, el.state, el.status,
+    const demoTag = TEST.demo && !TEST.shot
+      ? h("span", { class: "demo-tag", title: `A made-up ChatGPT account; nothing real is touched.${SCALE === 1 ? "" : ` Every wait runs ${SPEEDUP}× faster than on chatgpt.com.`}` }, SCALE === 1 ? "Demo" : `Demo · ${SPEEDUP}× Speed`)
+      : null;
+    const foot = h("div", { class: "foot" }, el.state, el.status, demoTag,
       h("div", { class: "links" }, el.activityBtn, el.networkBtn,
         h("a", { class: "btn", href: HOMEPAGE, target: "_blank", rel: "noopener noreferrer" }, "GitHub ↗"),
         h("button", { class: "btn", type: "button", onclick: () => openHelp() }, "? Shortcuts")));
@@ -2516,8 +2525,8 @@
     else if (r.status === "backup") say = r.note;
     else if (r.status === "verifying") say = r.note || "Double-checking with ChatGPT.";
     else if (r.status === "running") {
-      const left = Math.ceil(((total - r.i) * Store.data.settings.gap) / 60);
-      say = r.note || `One change every ${Store.data.settings.gap}s. About ${plural(left, "minute")} to go.`;
+      const gap = Store.data.settings.gap;
+      say = r.note || `One change every ${paceHere(gap)}${paceNote(gap)}. ${timeLeft((total - r.i) * gap * SCALE)} to go.`;
     } else if (r.status === "paused") say = r.note || "Nothing else changes until you resume.";
     else if (finished) {
       const bits = [`${plural(done, "change")} made`];
@@ -3079,7 +3088,6 @@
     const n = { delete: 0, archive: 0, unarchive: 0, rename: 0 };
     for (const j of jobs) n[j.action] += 1;
     const gap = Store.data.settings.gap;
-    const minutes = Math.max(1, Math.round((jobs.length * gap) / 60));
     const rows = ["delete", "archive", "unarchive", "rename"].filter((a) => n[a]).map((a) => h("div", { class: a === "delete" ? "del" : "" },
       h("span", null, ACTION[a].label, a === "delete" ? h("span", { class: "x" }, "Permanent · ChatGPT can't restore deleted chats") : null),
       h("span", { class: "n" }, String(n[a]))));
@@ -3101,7 +3109,7 @@
     const body = [
       h("div", { class: "table" }, rows),
       review,
-      h("div", { class: "eta" }, "One change every ", h("span", { class: "num" }, `${gap}s`), " · About ", h("span", { class: "num" }, String(minutes)), minutes === 1 ? " minute" : " minutes"),
+      h("div", { class: "eta" }, "One change every ", h("span", { class: "num" }, paceHere(gap)), paceNote(gap), ` · ${timeLeft(jobs.length * gap * SCALE)}`),
       h("p", { class: "hint" }, "If ChatGPT says \"too many requests\", Triage waits as long as it asks and carries on by itself."),
     ];
     if (n.delete) body.push(check(backup, `Back up the ${plural(n.delete, "chat")} being deleted first`, "Saves one Markdown file before anything is deleted."));
@@ -3154,7 +3162,7 @@
     modal("Settings", [
       h("div", { class: "lbl", style: "margin-top:0" }, "Pace"),
       h("div", { class: "inline" }, h("span", null, "Wait"), gap, h("span", null, "seconds between changes")),
-      h("p", { class: "hint", style: "margin-top:10px" }, `Slower is safer. Minimum ${CFG.gapMin}, default ${CFG.gapDefault}. After a "too many requests", Triage also waits however long ChatGPT asks.`),
+      h("p", { class: "hint", style: "margin-top:10px" }, `Slower is safer. Minimum ${CFG.gapMin}, default ${CFG.gapDefault}. After a "too many requests", Triage also waits however long ChatGPT asks.${SCALE === 1 ? "" : ` In this demo, every wait runs ${SPEEDUP}× faster.`}`),
       h("div", { class: "lbl" }, "Appearance"),
       themeSeg(),
       h("div", { class: "lbl" }, "Safety"),

@@ -32,7 +32,10 @@
   } catch { /* ignore */ }
   const RATE = params.get("ratelimit");
   const RATE_MAX = Number(params.get("max")) || 8;
-  const RATE_WINDOW = (Number(params.get("window")) || 30) * 1000;
+  // The demo fast-forwards everything by ?speed (4× unless set), ChatGPT's own waits included,
+  // so one clock runs the whole demo. A 30 second limit window lasts 7.5 real seconds at 4×.
+  const SPEED = Number(params.get("speed")) || 4;
+  const RATE_WINDOW = ((Number(params.get("window")) || 30) * 1000) / SPEED;
   const EXPIRE = (Number(params.get("expire")) || 0) * 1000;
   const FAIL = Math.min(1, Number(params.get("fail")) || 0);
   // ?ghost=0.3 makes 30% of changes report success without taking effect (like chats that reappear).
