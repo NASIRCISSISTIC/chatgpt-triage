@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en" class="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Triage · Demo</title>
+  <meta name="description" content="Try Triage on a fake ChatGPT account with made-up chats. Nothing here touches a real ChatGPT account.">
+  <style>
+    :root { --bg: #ffffff; --side: #f9f9f9; --fg: #0d0d0d; --fg2: #5d5d66; --line: #e5e5ea; --hover: #ececef; --card: #f7f7f8; }
+    html.dark { --bg: #212121; --side: #181818; --fg: #ececec; --fg2: #a8a8a8; --line: #333333; --hover: #2a2a2a; --card: #2a2a2a; color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; height: 100vh; display: flex; overflow: hidden; }
+    aside { width: 260px; flex-shrink: 0; background: var(--side); border-right: 1px solid var(--line); padding: 12px 8px; overflow: auto; }
+    aside h2 { font-size: 12px; color: var(--fg2); font-weight: 600; margin: 14px 10px 6px; }
+    aside a { display: block; padding: 7px 10px; border-radius: 8px; color: var(--fg); text-decoration: none; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    aside a:hover { background: var(--hover); }
+    .logo { font-weight: 650; padding: 6px 10px; }
+    main { flex: 1; overflow: auto; display: grid; place-items: center; padding: 32px 20px; }
+    .card { max-width: 620px; }
+    h1 { font-size: 28px; line-height: 1.2; margin: 0 0 10px; }
+    p { color: var(--fg2); margin: 0 0 14px; }
+    .note { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 14px; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+    button, .btn { height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font: inherit; font-size: 14px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; }
+    button:hover, .btn:hover { background: var(--hover); }
+    button.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 600; }
+    kbd { font: 12px ui-monospace, Consolas, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px; }
+    @media (max-width: 760px) { aside { display: none; } }
+  </style>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var speed = Number(params.get("speed")) || 4;
+      // Pretend to be a userscript manager so Triage shows its launcher button.
+      window.GM_info = { script: { name: "Triage", version: "demo" } };
+      window.__TRIAGE_TEST__ = { timeScale: 1 / speed, demo: true, expose: params.has("expose") || params.has("scene") };
+      var theme = params.get("theme") || localStorage.getItem("triage-demo:theme");
+      if (theme === "dark" || (!theme && window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+        document.documentElement.className = "dark";
+      }
+    })();
+  </script>
+  <script src="mock-api.js"></script>
+</head>
+<body>
+  <aside aria-label="Fake chat history">
+    <div class="logo">ChatGPT (demo)</div>
+    <h2>Chats</h2>
+    <nav id="side"></nav>
+  </aside>
+  <main>
+    <div class="card">
+      <h1>Triage: live demo</h1>
+      <p>This page imitates chatgpt.com with a fake account of about 280 made-up chats. Triage runs exactly as it would on ChatGPT, but every request is answered inside this page. Nothing touches a real account.</p>
+      <div class="row">
+        <button class="primary" id="open" type="button">Open Triage</button>
+        <button id="limits" type="button"></button>
+        <button id="theme" type="button">Switch theme</button>
+        <button id="reset" type="button">Reset demo</button>
+      </div>
+      <div class="note">
+        Try it: move with <kbd>↑</kbd> <kbd>↓</kbd>, press <kbd>D</kbd> to queue a delete, <kbd>A</kbd> to archive, <kbd>R</kbd> to rename, then Run queue.
+        Waits run <span id="speed"></span> faster than the real thing so the demo doesn't take all day.
+        Turn on simulated limits to watch Triage handle ChatGPT's "Too many requests".
+      </div>
+    </div>
+  </main>
+  <script src="../chatgpt-triage.user.js"></script>
+  <script>
+    async function scene(name) {
+      var wait = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+      window.__chatgptTriage.open();
+      var D = window.__chatgptTriage.debug;
+      var shadow = document.getElementById("chatgpt-triage").shadowRoot;
+      while (D.Data.loading || !D.Data.active.length) await wait(50);
+      var rows = D.ui.order.map(function (id) { return D.Data.byId.get(id); });
+      var marks = D.Store.data.marks;
+      var mark = function (i, a, t) { var c = rows[i]; marks[c.id] = { a: a, title: c.title, t: t, at: Date.now() }; };
+      [0, 1, 5, 9, 11, 14].forEach(function (i) { mark(i, "delete"); });
+      [2, 8, 13].forEach(function (i) { mark(i, "archive"); });
+      mark(6, "rename", "Postgres vs MySQL: what I decided");
+      D.Store.data.protect[rows[3].id] = { title: rows[3].title, at: Date.now() };
+      for (var i = 0; i < 12; i += 1) D.Store.data.seen[rows[i].id] = 1;
+      D.ui.renderAll();
+      // Open the longest unmarked chat near the top, so the reader has something to show.
+      var turns = function (c) { var x = window.__triageDemo.db.convs.find(function (d) { return d.id === c.id; }); return x ? x.turns : 0; };
+      var pick = [7, 10, 12, 15, 16, 17].map(function (i) { return rows[i]; }).sort(function (a, b) { return turns(b) - turns(a); })[0];
+      shadow.querySelector('.row[data-id="' + pick.id + '"]').click();
+      while (!D.cache.has(pick.id)) await wait(50);
+      await wait(100);
+      if (name === "confirm" || name === "waiting") {
+        shadow.querySelector(".top .btn.primary").click();
+        await wait(100);
+      }
+      if (name === "waiting") {
+        shadow.querySelector(".modal input[type=checkbox]").checked = false;
+        shadow.querySelector(".modal .mfoot .btn.primary").click();
+        while (!D.Store.data.run || D.Store.data.run.status !== "waiting") await wait(50);
+        await wait(300);
+      }
+      document.title = "scene-ready";
+    }
+  </script>
+  <script>
+    (function () {
+      var params = new URLSearchParams(location.search);
+      var limited = params.has("ratelimit");
+      document.getElementById("speed").textContent = (Number(params.get("speed")) || 4) + "×";
+      document.getElementById("open").onclick = function () { window.__chatgptTriage.open(); };
+      var limits = document.getElementById("limits");
+      limits.textContent = limited ? "Turn off simulated limits" : "Simulate “Too many requests”";
+      limits.onclick = function () {
+        if (limited) { params.delete("ratelimit"); params.delete("max"); params.delete("window"); }
+        else { params.set("ratelimit", "on"); params.set("max", "6"); params.set("window", "40"); }
+        location.search = params.toString();
+      };
+      document.getElementById("theme").onclick = function () {
+        var dark = document.documentElement.className !== "dark";
+        document.documentElement.className = dark ? "dark" : "light";
+        localStorage.setItem("triage-demo:theme", dark ? "dark" : "light");
+      };
+      document.getElementById("reset").onclick = function () {
+        if (!confirm("Reset the demo account and everything Triage saved for it?")) return;
+        window.__triageDemo.reset();
+        location.reload();
+      };
+      // ?scene=review|confirm|waiting sets up a state for README screenshots.
+      var sceneName = params.get("scene");
+      if (sceneName) setTimeout(function () { scene(sceneName); }, 0);
+      var side = document.getElementById("side");
+      window.__triageDemo.visible()
+        .filter(function (c) { return !c.is_archived; })
+        .sort(function (a, b) { return b.updated - a.updated; })
+        .slice(0, 30)
+        .forEach(function (c) {
+          var a = document.createElement("a");
+          a.href = "#";
+          a.textContent = c.title;
+          a.onclick = function (e) { e.preventDefault(); };
+          side.appendChild(a);
+        });
+    })();
+  </script>
+</body>
+</html>
