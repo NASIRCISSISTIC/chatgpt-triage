@@ -1150,7 +1150,7 @@
     .row:hover .mark { opacity: 0; }
     .row.sel .acts { background: linear-gradient(to right, transparent, var(--fill2) 24px); }
     .row.focus .acts { background: linear-gradient(to right, transparent, var(--fg) 24px); }
-    .mini { width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: var(--fg2); cursor: pointer; display: grid; place-items: center; transition: background-color .12s, color .12s; }
+    .mini { width: 28px; height: 28px; border: 0; border-radius: 8px; background: transparent; color: var(--fg2); cursor: pointer; display: grid; place-items: center; transition: background-color .12s, color .12s; }
     .mini:hover { background: var(--fill2); color: var(--fg); }
     .mini.on { color: var(--fg); }
     .row.focus .mini { color: color-mix(in srgb, var(--bg) 70%, transparent); }
