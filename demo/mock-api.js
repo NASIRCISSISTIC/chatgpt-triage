@@ -157,13 +157,24 @@
     };
   }
 
-  const LINES = [
-    "Here's a clear way to think about it.",
-    "Short answer: yes, with a couple of caveats.",
-    "Let's break this into three steps.",
-    "Good question. The key idea is simpler than it sounds.",
-    "Here's a draft you can adapt.",
-    "A few options, from easiest to most thorough:",
+  const REPLIES = [
+    "Here's a simple way to approach it. Start with the smallest version that works, try it on one real example, and adjust from there. Tell me more about your situation and I can be more specific.",
+    "Short answer: yes, with a couple of caveats. It depends on how much time you have and what you already know, so I'd start with the basics and build up.",
+    "Here's a first draft you can adapt. Keep it short, lead with the main point, and end with a clear next step.",
+    "A few options, from easiest to most thorough. The first takes five minutes and covers most cases. The last is worth it only if this comes up often.",
+    "Good question. The key idea is simpler than it sounds: change one thing at a time, and check the result before you change the next.",
+  ];
+  const FOLLOW_UPS = [
+    "Thanks. Can you make that shorter?",
+    "What would you do first?",
+    "Could you give me an example?",
+    "Is there a quicker way?",
+  ];
+  const MONTY = [
+    ["Can you explain the Monty Hall problem? I keep getting it wrong.",
+      "Sure. You pick one of three doors. One hides a car and the other two hide goats. The host, who knows where the car is, opens one of the doors you didn't pick and shows you a goat. Then he lets you switch.\n\nSwitching wins two times out of three. Your first pick had a 1 in 3 chance of being right, and the host's reveal doesn't change that, so the other closed door carries the remaining 2 in 3."],
+    ["That still feels like it should be 50/50.",
+      "That's the usual intuition. Try it with 100 doors. You pick one, and the host opens 98 goat doors, leaving yours and one other. Sticking only wins if your first guess out of 100 was right. Switching wins the other 99 times."],
   ];
 
   function detail(c) {
@@ -175,30 +186,24 @@
     };
     let prev = "sys";
     let t = c.created;
-    const topic = c.title === "New chat" ? "something I was curious about" : c.title.toLowerCase();
-    for (let i = 0; i < c.turns; i += 1) {
+    const monty = c.title === "Explain the Monty Hall problem";
+    const turns = monty ? MONTY.length : c.turns;
+    for (let i = 0; i < turns; i += 1) {
       const u = `u${i}`;
       const a = `a${i}`;
       t += 20 + r() * 200;
-      const userParts = i === 0
-        ? [`Can you help me with this: ${topic}?`]
-        : [`Thanks. Can you go a bit deeper on point ${1 + Math.floor(r() * 3)}?`];
-      if (i === 1 && r() > 0.6) userParts.unshift({ content_type: "image_asset_pointer", asset_pointer: "file-service://demo" });
+      let ask = FOLLOW_UPS[Math.floor(r() * FOLLOW_UPS.length)];
+      if (i === 0) ask = c.title === "New chat" ? "Quick question about something I read today." : c.title.replace(/, follow-up$/, "");
+      if (monty) ask = MONTY[i][0];
+      const userParts = [ask];
+      if (i === 1 && !monty && r() > 0.6) userParts.unshift({ content_type: "image_asset_pointer", asset_pointer: "file-service://demo" });
       mapping[u] = {
         id: u, parent: prev, children: [a],
         message: { id: u, author: { role: "user" }, create_time: t, content: { content_type: i === 1 ? "multimodal_text" : "text", parts: userParts }, metadata: {} },
       };
       mapping[prev].children.push(u);
       t += 5 + r() * 30;
-      const body = [
-        LINES[Math.floor(r() * LINES.length)],
-        "",
-        `1. Start with the basics of ${topic}.`,
-        "2. Check the part that usually goes wrong.",
-        "3. Keep what works and drop the rest.",
-        "",
-        "This is demo text. None of these chats are real.",
-      ].join("\n");
+      const body = monty ? MONTY[i][1] : REPLIES[Math.floor(r() * REPLIES.length)];
       mapping[a] = {
         id: a, parent: u, children: [],
         message: { id: a, author: { role: "assistant" }, create_time: t, content: { content_type: "text", parts: [body] }, metadata: {} },

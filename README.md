@@ -19,10 +19,10 @@ Triage is a free userscript that adds a cleanup workspace to chatgpt.com. You go
 - **Protect what matters.** Press `P` and a chat can never be queued, even by select all.
 - **Project chats stay out of the way.** The main list leaves out chats that live in Projects, so a cleanup can't empty a project by accident. They have their own tab when you want them.
 - **Pick up where you left off.** Marks, protected chats and the chats you've already read are saved in your browser. Close the tab, reload, come back next week: it's all still there. A run that was interrupted resumes from the same chat.
-- **Built for big cleanups.** Filters for age, untitled and unread chats, search, shift-click ranges, select all and invert.
+- **Built for big cleanups.** A Filter menu for unread, untitled and marked chats and for age, three sort orders, search, shift-click ranges, select all and invert.
 - **A backup before deleting.** Before a delete run, Triage can save every chat about to be deleted to a Markdown file.
 - **Checks its own work.** At the end of a run, Triage reloads your list and flags anything that didn't actually go.
-- **Light or dark.** Triage matches ChatGPT's theme, or flip it yourself with the sun and moon button.
+- **Light or dark.** Triage matches ChatGPT's theme, or switch it yourself with the sun and moon button. The new theme spreads out in a circle from the button you pressed.
 
 ## How it stays under ChatGPT's limit
 
@@ -59,7 +59,7 @@ You'll need to paste it again after reloading the page. Only paste code you've r
 ## Using it
 
 1. **Read and mark.** Go down the list. The chat opens on the right. Mark it or skip it.
-2. **Check the queue.** The top bar shows what's queued. The **Marked** filter shows only chats with a change waiting.
+2. **Check the queue.** The top bar shows what's queued. **Filter → Marked** shows only chats with a change waiting.
 3. **Run it.** Press **Run Queue**, check the summary, and confirm. Deleting 20 or more chats asks you to type the number. You can close the panel while it runs; the corner button shows progress.
 
 ![The confirmation before running the queue](docs/confirm.png)
@@ -75,7 +75,8 @@ You'll need to paste it again after reloading the page. Only paste code you've r
 | `P` | Protect or unprotect |
 | `C` | Clear the queued change |
 | `/` | Search |
-| `?` | All shortcuts |
+| `Esc` | Clear the selection, or close a menu or dialog |
+| `?` | All shortcuts (also **? Shortcuts** at the bottom right) |
 | `Alt` + `Shift` + `T` | Open or close Triage |
 
 ## Privacy

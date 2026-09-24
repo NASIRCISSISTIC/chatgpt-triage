@@ -84,12 +84,13 @@
       D.ui.renderAll();
       // Open the longest unmarked chat near the top, so the reader has something to show.
       var turns = function (c) { var x = window.__triageDemo.db.convs.find(function (d) { return d.id === c.id; }); return x ? x.turns : 0; };
-      var pick = [7, 10, 12, 15, 16, 17].map(function (i) { return rows[i]; }).sort(function (a, b) { return turns(b) - turns(a); })[0];
+      var pick = rows.slice(0, 18).find(function (c) { return c.title === "Explain the Monty Hall problem"; }) ||
+        [7, 10, 12, 15, 16, 17].map(function (i) { return rows[i]; }).sort(function (a, b) { return turns(b) - turns(a); })[0];
       shadow.querySelector('.row[data-id="' + pick.id + '"]').click();
       while (!D.cache.has(pick.id)) await wait(50);
       await wait(100);
       if (name === "confirm" || name === "waiting") {
-        shadow.querySelector(".top .btn.primary").click();
+        shadow.querySelector(".run").click();
         await wait(100);
       }
       if (name === "waiting") {
@@ -98,6 +99,9 @@
         while (!D.Store.data.run || D.Store.data.run.status !== "waiting") await wait(50);
         await wait(300);
       }
+      // Headless screenshots don't always draw frames, so settle entrance animations first.
+      await wait(400);
+      (shadow.getAnimations ? shadow.getAnimations() : []).forEach(function (a) { try { a.finish(); } catch (e) { /* endless, e.g. a spinner */ } });
       document.title = "scene-ready";
     }
   </script>

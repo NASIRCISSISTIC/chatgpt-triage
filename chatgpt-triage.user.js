@@ -201,6 +201,9 @@
     sun: "M12 3v1.5M12 19.5V21M4.6 4.6l1.1 1.1M18.3 18.3l1.1 1.1M3 12h1.5M19.5 12H21M4.6 19.4l1.1-1.1M18.3 5.7l1.1-1.1M8 12a4 4 0 1 0 8 0 4 4 0 1 0-8 0",
     moon: "M20 14.2A8 8 0 0 1 9.8 4 8 8 0 1 0 20 14.2z",
     play: "M7 4.5v15a1 1 0 0 0 1.5.9l12-7.5a1 1 0 0 0 0-1.8l-12-7.5A1 1 0 0 0 7 4.5z",
+    search: "M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM20 20l-4.5-4.5",
+    filter: "M4 6h16M7 12h10M10 18h4",
+    chevron: "M6 9l6 6 6-6",
   };
 
   function icon(name, size = 16) {
@@ -927,323 +930,314 @@
   // ---------------------------------------------------------------------------
   // Interface
   //
-  // One rule for type: anything the machine says (labels, dates, counts, keys,
-  // status) is monospace; anything a person wrote (chats, titles, sentences) is
-  // sans-serif. Black and white throughout. Red only means "this deletes".
+  // Design rules, so the whole thing reads as one piece:
+  //   - Both columns share the same horizontal bands, so lines run straight across.
+  //   - Each column has one left edge. In the reader, the buttons, details, title
+  //     and conversation all sit in the same centred column.
+  //   - One control height (32px), one corner radius (8px), four text sizes.
+  //   - Words are sans-serif; dates and numbers are monospace.
+  //   - Black and white. Red means "this deletes"; green and amber are status lights.
   // ---------------------------------------------------------------------------
 
   const CSS = `
     :host { all: initial; }
     .root {
-      --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
       --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+      --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
       --ease: cubic-bezier(.22, 1, .36, 1);
       --ease-in: cubic-bezier(.55, 0, .75, .2);
-      --bg: #ffffff; --bg1: #ffffff; --bg2: #f4f4f4; --bg3: #ebebeb;
-      --line: #ededed; --line2: #d6d6d6;
-      --fg: #0a0a0a; --fg2: #4f4f4f; --fg3: #8a8a8a; --fg4: #bcbcbc;
-      --red: #d70015; --red-bg: rgba(215, 0, 21, .07);
-      --green: #1fa04b; --amber: #d98300;
-      --veil: rgba(255, 255, 255, .74);
+      --top: 56px; --band1: 52px; --band2: 40px; --gutter: 20px;
+      --bg: #ffffff; --raised: #ffffff; --fill: #f2f2f4; --fill2: #e8e8eb; --line: #ebebee;
+      --fg: #111113; --fg2: #505055; --fg3: #6e6e73;
+      --red: #d70015; --green: #1f9d4c; --amber: #b86e00;
+      --veil: rgba(255, 255, 255, .72);
+      --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.6 6.3 5 8.6 9.4 3.9' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      --tick-inv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.6 6.3 5 8.6 9.4 3.9' fill='none' stroke='%23111113' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
       --shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 28px 70px -18px rgba(0, 0, 0, .28);
       color-scheme: light;
-      font: 14px/1.5 var(--sans);
+      font: 13px/1.45 var(--sans);
       color: var(--fg);
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
     }
     .root.dark {
-      --bg: #000000; --bg1: #0a0a0a; --bg2: #121212; --bg3: #1b1b1b;
-      --line: #1a1a1a; --line2: #2c2c2c;
-      --fg: #f4f4f4; --fg2: #a6a6a6; --fg3: #6c6c6c; --fg4: #414141;
-      --red: #ff453a; --red-bg: rgba(255, 69, 58, .12);
-      --green: #30d158; --amber: #ffb340;
-      --veil: rgba(0, 0, 0, .7);
-      --shadow: 0 0 0 1px rgba(255, 255, 255, .03), 0 40px 90px -24px rgba(0, 0, 0, .95);
+      --bg: #000000; --raised: #0c0c0d; --fill: #151517; --fill2: #202023; --line: #1d1d20;
+      --fg: #f5f5f7; --fg2: #a1a1a6; --fg3: #8a8a8f;
+      --red: #ff453a; --green: #30d158; --amber: #ffb340;
+      --veil: rgba(0, 0, 0, .68);
+      --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.6 6.3 5 8.6 9.4 3.9' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      --tick-inv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.6 6.3 5 8.6 9.4 3.9' fill='none' stroke='%23f5f5f7' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      --shadow: 0 0 0 1px rgba(255, 255, 255, .04), 0 40px 90px -24px rgba(0, 0, 0, .95);
       color-scheme: dark;
     }
-    * { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
+    .root.no-anim *, .root.no-anim *::before, .root.no-anim *::after { transition: none !important; }
+    * { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--fill2) transparent; }
     [hidden] { display: none !important; }
-    button, input, select { font: inherit; color: inherit; }
+    :where(button, input, select) { font: inherit; color: inherit; }
     a { color: inherit; text-decoration: none; }
     ::selection { background: var(--fg); color: var(--bg); }
     :focus { outline: none; }
-    :focus-visible { outline: 1px solid var(--fg); outline-offset: 2px; }
+    :focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+    svg { flex-shrink: 0; }
 
     @keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.992); } }
     @keyframes sink { to { opacity: 0; transform: translateY(6px) scale(.996); } }
     @keyframes fade { from { opacity: 0; } }
     @keyframes fade-out { to { opacity: 0; } }
-    @keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.985); } }
+    @keyframes pop { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
     @keyframes up { from { opacity: 0; transform: translateY(6px); } }
     @keyframes slide { from { opacity: 0; transform: translateX(-6px); } }
     @keyframes strike { from { transform: scaleX(0); } }
-    @keyframes blink { 50% { opacity: 0; } }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes bump { 40% { transform: scale(1.3); } }
+    @keyframes turn { from { opacity: 0; transform: rotate(-90deg) scale(.6); } }
     @keyframes toast { from { opacity: 0; transform: translate(-50%, 10px) scale(.98); } }
     @keyframes toast-out { to { opacity: 0; transform: translate(-50%, 6px); } }
 
     /* Launcher on chatgpt.com */
     .launcher {
-      position: fixed; right: 20px; bottom: 88px; display: inline-flex; align-items: center; gap: 10px;
-      height: 34px; padding: 0 15px 0 13px; border-radius: 999px; border: 1px solid #2a2a2a;
-      background: #0a0a0a; color: #f4f4f4; cursor: pointer; box-shadow: 0 10px 28px -10px rgba(0, 0, 0, .5);
+      position: fixed; right: 20px; bottom: 88px; display: inline-flex; align-items: center; gap: 9px;
+      height: 34px; padding: 0 14px 0 12px; border-radius: 999px; border: 1px solid #2a2a2c;
+      background: #0b0b0c; color: #f5f5f7; cursor: pointer; font: 600 12.5px/1 var(--sans);
+      box-shadow: 0 10px 28px -10px rgba(0, 0, 0, .5);
       transition: transform .2s var(--ease), box-shadow .2s var(--ease); animation: rise .45s var(--ease) both;
     }
     .launcher:hover { transform: translateY(-1px); box-shadow: 0 14px 32px -10px rgba(0, 0, 0, .6); }
     .launcher:active { transform: scale(.97); }
-    .launcher .word { font: 600 10.5px/1 var(--sans); letter-spacing: .34em; margin-right: -.34em; }
-    .launcher .info { font: 11px/1 var(--mono); color: #9a9a9a; font-variant-numeric: tabular-nums; }
-    .launcher .dot { width: 6px; height: 6px; border-radius: 50%; background: #6c6c6c; transition: background-color .3s; }
+    .launcher .info { font: 12px/1 var(--mono); color: #9a9a9f; font-variant-numeric: tabular-nums; }
+    .launcher .dot { width: 6px; height: 6px; border-radius: 50%; background: #6c6c70; transition: background-color .3s; }
     .launcher .dot.go, .launcher .dot.ok { background: #30d158; }
     .launcher .dot.wait { background: #ffb340; }
     .launcher .dot.live { animation: pulse 1.6s var(--ease) infinite; }
 
     /* Frame */
-    .panel { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--fg); outline: none; animation: rise .3s var(--ease) both; transition: background-color .35s var(--ease), color .35s var(--ease); }
+    .panel { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--fg); outline: none; animation: rise .3s var(--ease) both; }
     .panel.leaving { animation: sink .16s var(--ease-in) both; pointer-events: none; }
-    .top { display: flex; align-items: stretch; gap: 18px; height: 56px; padding: 0 20px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
-    .brand { display: flex; align-items: center; gap: 12px; user-select: none; }
-    .brand .word { font: 600 12.5px/1 var(--sans); letter-spacing: .36em; margin-right: -.36em; }
-    .brand .caret { width: 7px; height: 13px; background: var(--fg); margin-left: 3px; animation: blink 1.15s steps(1) infinite; }
-    .brand .ver { font: 11px/1 var(--mono); color: var(--fg3); }
-    .tabs { position: relative; display: flex; margin-left: 10px; }
-    .tabbtns { display: flex; gap: 2px; }
-    .tab { border: 0; background: none; padding: 0 10px; cursor: pointer; display: flex; align-items: center; gap: 7px; font: 12.5px/1 var(--mono); color: var(--fg3); transition: color .18s; }
+    .top { height: var(--top); flex-shrink: 0; display: flex; align-items: center; gap: 28px; padding: 0 var(--gutter); border-bottom: 1px solid var(--line); }
+    .brand { font: 600 15px/1 var(--sans); letter-spacing: -.01em; user-select: none; }
+    .tabs { position: relative; align-self: stretch; display: flex; }
+    .tabbtns { display: flex; gap: 22px; }
+    .tab { border: 0; background: none; padding: 0; cursor: pointer; display: flex; align-items: center; gap: 6px; color: var(--fg3); transition: color .2s; }
     .tab:hover { color: var(--fg2); }
     .tab.on { color: var(--fg); }
-    .tab .n { font-size: 11px; color: var(--fg4); font-variant-numeric: tabular-nums; transition: color .18s; }
-    .tab.on .n { color: var(--fg3); }
-    .tabind { position: absolute; left: 0; bottom: -1px; height: 1.5px; width: 0; background: var(--fg); opacity: 0; pointer-events: none; transition: transform .34s var(--ease), width .34s var(--ease), opacity .2s; }
+    .tab .n { font: 12px/1 var(--mono); color: var(--fg3); font-variant-numeric: tabular-nums; }
+    .tabind { position: absolute; left: 0; bottom: -1px; height: 2px; width: 0; border-radius: 2px; background: var(--fg); opacity: 0; pointer-events: none; transition: transform .35s var(--ease), width .35s var(--ease), opacity .2s; }
     .instant { transition: none !important; }
     .spacer { flex: 1; }
-    .queue { display: flex; align-items: center; gap: 16px; font: 12px/1 var(--mono); color: var(--fg3); white-space: nowrap; }
-    .queue b { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .queue { display: flex; gap: 14px; color: var(--fg3); white-space: nowrap; }
+    .queue b { margin-left: 4px; font: 600 12px/1 var(--mono); color: var(--fg); font-variant-numeric: tabular-nums; }
     .queue .q-delete b { color: var(--red); }
-    .actions { display: flex; align-items: center; gap: 6px; }
+    .actions { display: flex; align-items: center; gap: 4px; }
 
+    /* Controls: one height, one radius */
     .btn {
-      height: 30px; padding: 0 11px; border-radius: 7px; border: 1px solid var(--line2); background: transparent; cursor: pointer;
-      display: inline-flex; align-items: center; gap: 8px; font: 12px/1 var(--mono); color: var(--fg); white-space: nowrap;
-      transition: background-color .15s, border-color .15s, color .15s, opacity .15s, transform .12s var(--ease);
+      height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 10px; border: 0; border-radius: 8px;
+      background: transparent; cursor: pointer; color: var(--fg); white-space: nowrap;
+      transition: background-color .15s, color .15s, opacity .15s;
     }
-    .btn:hover:not(:disabled) { background: var(--bg2); border-color: var(--fg4); }
-    .btn:active:not(:disabled) { transform: scale(.97); }
-    .btn:disabled { opacity: .32; cursor: default; }
-    .btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 600; }
-    .btn.primary:hover:not(:disabled) { background: var(--fg); border-color: var(--fg); opacity: .86; }
-    .btn.run { height: 32px; padding: 0 15px 0 13px; border-radius: 999px; gap: 8px; }
-    .btn.run.has-count { padding-right: 5px; }
-    .btn.run svg { transition: transform .28s var(--ease); }
-    .btn.run:hover:not(:disabled) svg { transform: translateX(2px); }
-    .btn.run .count {
-      display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px;
-      background: var(--bg); color: var(--fg); font: 600 11px/1 var(--mono); font-variant-numeric: tabular-nums;
-    }
-    .btn.run .count.bump { animation: bump .4s var(--ease); }
-    @keyframes bump { 40% { transform: scale(1.22); } }
-    .btn.icon.theme svg { animation: turn .5s var(--ease) both; }
-    @keyframes turn { from { opacity: 0; transform: rotate(-90deg) scale(.6); } }
-    .seg { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line2); border-radius: 9px; }
-    .seg button { height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; cursor: pointer; font: 12px/1 var(--mono); color: var(--fg2); transition: background-color .2s var(--ease), color .2s; }
-    .seg button:hover { color: var(--fg); }
-    .seg button.on { background: var(--fg); color: var(--bg); }
-    .btn.icon { width: 30px; padding: 0; justify-content: center; color: var(--fg2); border-color: transparent; }
-    .btn.icon:hover:not(:disabled) { color: var(--fg); background: var(--bg2); border-color: transparent; }
-    .btn.ghost { border-color: transparent; color: var(--fg2); }
-    .btn.ghost:hover:not(:disabled) { color: var(--fg); border-color: transparent; }
+    .btn:hover:not(:disabled) { background: var(--fill); }
+    .btn:active:not(:disabled) { transform: scale(.98); }
+    .btn:disabled { opacity: .35; cursor: default; }
+    .btn.icon { width: 32px; padding: 0; justify-content: center; color: var(--fg2); }
+    .btn.icon:hover:not(:disabled) { color: var(--fg); }
+    .btn.quiet { color: var(--fg2); }
+    .btn.quiet:hover:not(:disabled) { color: var(--fg); }
     .btn.danger { color: var(--red); }
-    .btn.on { background: var(--bg3); border-color: var(--fg4); }
-    .btn.small { height: 26px; padding: 0 9px; font-size: 11.5px; }
-    .k, .kbd {
-      display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 4px;
-      border: 1px solid var(--line2); font: 10.5px/1 var(--mono); color: var(--fg3);
-    }
-    .btn.on .k { border-color: var(--fg4); color: var(--fg2); }
+    .btn.on { background: var(--fill2); }
+    .btn.primary { padding: 0 14px; background: var(--fg); color: var(--bg); font-weight: 600; }
+    .btn.primary:hover:not(:disabled) { background: var(--fg); opacity: .86; }
+    .btn.icon.theme svg { animation: turn .5s var(--ease) both; }
+    .key { font: 12px/1 var(--mono); color: var(--fg3); }
+    .fcount { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 5px; background: var(--fg); color: var(--bg); font: 600 11px/18px var(--mono); text-align: center; }
+    .run { height: 32px; display: inline-flex; align-items: stretch; padding: 0; margin: 0 8px 0 4px; border: 0; border-radius: 8px; background: var(--fg); color: var(--bg); cursor: pointer; font-weight: 600; transition: opacity .15s; }
+    .run:hover:not(:disabled) { opacity: .88; }
+    .run:disabled { opacity: .3; cursor: default; }
+    .run .go { display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; }
+    .run .go svg { transition: transform .3s var(--ease); }
+    .run:hover:not(:disabled) .go svg { transform: translateX(2px); }
+    .run .count { display: grid; place-items: center; min-width: 38px; padding: 0 10px; border-left: 1px solid color-mix(in srgb, var(--bg) 22%, transparent); font: 600 12px/1 var(--mono); font-variant-numeric: tabular-nums; }
+    .run .count.bump span { display: inline-block; animation: bump .4s var(--ease); }
 
-    .banner { display: flex; align-items: center; gap: 14px; padding: 11px 20px; border-bottom: 1px solid var(--line); font: 12px/1.5 var(--sans); color: var(--fg2); animation: up .3s var(--ease) both; }
-    .banner .lbl { font: 600 10.5px/1 var(--mono); letter-spacing: .14em; color: var(--fg); }
-    .banner.bad, .banner.bad .lbl { color: var(--red); }
-    .banner .clock { margin-left: auto; font: 12px/1 var(--mono); color: var(--fg); font-variant-numeric: tabular-nums; }
+    .banner { display: flex; align-items: center; gap: 12px; padding: 10px var(--gutter); border-bottom: 1px solid var(--line); background: var(--fill); color: var(--fg2); animation: up .3s var(--ease) both; }
+    .banner b { color: var(--fg); font-weight: 600; }
+    .banner.bad, .banner.bad b { color: var(--red); }
+    .banner .clock { margin-left: auto; font: 600 12px/1 var(--mono); color: var(--fg); font-variant-numeric: tabular-nums; }
 
-    /* List */
+    /* Two columns that share the same bands */
     .main { flex: 1; display: flex; min-height: 0; position: relative; }
-    .left { width: min(640px, 48vw); min-width: 430px; display: flex; flex-direction: column; border-right: 1px solid var(--line); min-height: 0; }
-    .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 16px 16px 14px; }
-    .search {
-      flex: 1 1 220px; min-width: 0; height: 32px; padding: 0 12px; border-radius: 7px; border: 1px solid var(--line2);
-      background: transparent; font: 12.5px/1 var(--mono); outline: none; transition: border-color .18s;
-    }
-    .search::placeholder { color: var(--fg3); }
-    .search:focus { border-color: var(--fg); }
-    .select { height: 32px; border-radius: 7px; border: 1px solid var(--line2); background: var(--bg); padding: 0 8px; font: 12px/1 var(--mono); cursor: pointer; }
-    .chips { display: flex; gap: 6px; }
-    .chip {
-      height: 28px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--line2); background: transparent; cursor: pointer;
-      font: 11.5px/1 var(--mono); color: var(--fg2); transition: background-color .2s var(--ease), color .2s, border-color .2s;
-    }
-    .chip:hover { color: var(--fg); border-color: var(--fg4); }
-    .chip.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+    .left { width: min(600px, 44vw); min-width: 420px; display: flex; flex-direction: column; border-right: 1px solid var(--line); min-height: 0; }
+    .reader { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+    .band { flex-shrink: 0; display: flex; align-items: center; border-bottom: 1px solid var(--line); }
+    .b1 { height: var(--band1); }
+    .b2 { height: var(--band2); }
+    .left .band { padding: 0 var(--gutter); gap: 8px; }
+    .left .b2 { gap: 12px; }
+    .left .b2 .grp { display: flex; align-items: center; gap: 2px; margin-left: auto; overflow: hidden; }
+    .head-label { color: var(--fg2); white-space: nowrap; }
+    .head-label b { color: var(--fg); font-weight: 600; }
 
-    .listhead {
-      display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 42px; padding: 6px 18px;
-      border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font: 11.5px/1 var(--mono); color: var(--fg3);
+    .search { flex: 1; min-width: 0; height: 32px; display: flex; align-items: center; gap: 8px; padding: 0 10px; border-radius: 8px; background: var(--fill); color: var(--fg3); cursor: text; transition: box-shadow .15s; }
+    .search:focus-within { box-shadow: inset 0 0 0 1.5px var(--fg); }
+    .search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: 13px/1 var(--sans); color: var(--fg); }
+    .search input::placeholder { color: var(--fg3); }
+    .pop { position: relative; }
+    .menu {
+      position: absolute; top: 38px; z-index: 6; min-width: 230px; padding: 6px; border-radius: 12px;
+      background: var(--raised); border: 1px solid var(--line); box-shadow: var(--shadow); animation: pop .22s var(--ease) both;
     }
-    .listhead .grow { flex: 1; }
-    .listhead b { color: var(--fg); font-weight: 600; }
+    .menu.right { right: 0; }
+    .menu .mh { padding: 8px 10px 4px; font-size: 12px; color: var(--fg3); }
+    .menu .opt { width: 100%; height: 32px; display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; text-align: left; }
+    .menu .opt:hover { background: var(--fill); }
+    .menu .opt svg { visibility: hidden; }
+    .menu .opt.on svg { visibility: visible; }
+    .menu hr { margin: 6px 4px; border: 0; border-top: 1px solid var(--line); }
 
+    .gut { width: 16px; height: 16px; display: grid; place-items: center; flex-shrink: 0; }
     .cb {
-      appearance: none; -webkit-appearance: none; margin: 0; width: 13px; height: 13px; flex-shrink: 0; cursor: pointer;
-      border: 1px solid var(--fg4); border-radius: 3px; background: transparent;
+      appearance: none; -webkit-appearance: none; margin: 0; width: 14px; height: 14px; flex-shrink: 0; cursor: pointer;
+      border: 1.5px solid var(--fg3); border-radius: 4px; background: transparent;
       transition: background-color .15s, border-color .15s, box-shadow .15s;
     }
     .cb:hover { border-color: var(--fg2); }
-    .cb:checked { background: var(--fg); border-color: var(--fg); box-shadow: inset 0 0 0 2.5px var(--bg); }
+    .cb:checked { background: var(--fg) var(--tick) center / 12px no-repeat; border-color: var(--fg); }
     .cb:indeterminate { background: var(--fg3); border-color: var(--fg3); box-shadow: inset 0 0 0 3.5px var(--bg); }
-    .cb:disabled { opacity: .28; cursor: default; }
+    .cb:disabled { opacity: .3; cursor: default; }
 
     .list { flex: 1; position: relative; overflow: auto; overscroll-behavior: contain; outline: none; padding: 6px 0 28px; }
-    .cursor {
-      position: absolute; top: 0; left: 8px; right: 8px; height: 34px; border-radius: 7px; background: var(--fg); opacity: 0;
-      pointer-events: none; transition: transform .22s var(--ease), height .22s var(--ease), opacity .18s;
-    }
+    .cursor { position: absolute; top: 0; left: 8px; right: 8px; height: 36px; border-radius: 8px; background: var(--fg); opacity: 0; pointer-events: none; transition: transform .22s var(--ease), height .22s var(--ease), opacity .18s; }
     .rows { position: relative; }
     .row {
-      position: relative; display: grid; grid-template-columns: 13px 82px minmax(0, 1fr) auto; align-items: center; column-gap: 14px;
-      height: 34px; margin: 0 8px; padding: 0 10px; border-radius: 7px; font: 12.5px/1 var(--mono); color: var(--fg);
-      transition: color .18s, background-color .18s;
+      position: relative; height: 36px; margin: 0 8px; padding: 0 12px; display: grid; grid-template-columns: 16px 92px minmax(0, 1fr) auto;
+      column-gap: 12px; align-items: center; border-radius: 8px; transition: background-color .15s, color .15s;
     }
-    .row:hover { background: var(--bg2); }
-    .row.sel { background: var(--bg3); }
+    .row:hover { background: var(--fill); }
+    .row.sel { background: var(--fill2); }
     .row.focus, .row.focus:hover { background: transparent; color: var(--bg); }
-    .row .date { font-size: 11.5px; color: var(--fg3); font-variant-numeric: tabular-nums; white-space: nowrap; transition: color .18s; }
+    .row .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fg); }
+    .row.focus .dot { background: var(--bg); }
+    .row .cb { display: none; }
+    .row:hover .cb, .row.sel .cb, .list.selecting .row .cb { display: block; }
+    .row:hover .dot, .row.sel .dot, .list.selecting .row .dot { display: none; }
+    .row.focus .cb { border-color: var(--bg); }
+    .row.focus .cb:checked { background-color: var(--bg); background-image: var(--tick-inv); }
+    .row .date { font: 12px/1 var(--mono); color: var(--fg3); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .row.focus .date { color: color-mix(in srgb, var(--bg) 62%, transparent); }
     .row .title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .row .t { position: relative; }
     .row.seen .t { color: var(--fg2); }
+    .row.focus .t { color: var(--bg); }
     .row.m-delete .t { color: var(--fg3); }
-    .row.m-delete .t::after {
-      content: ""; position: absolute; left: 0; right: 0; top: 55%; height: 1px; background: currentColor; transform-origin: left center;
-    }
+    .row.m-delete .t::after { content: ""; position: absolute; left: 0; right: 0; top: 55%; height: 1px; background: currentColor; transform-origin: left center; }
     .row.m-delete.fresh .t::after { animation: strike .38s var(--ease) both; }
-    .row.focus .t, .row.focus.seen .t { color: var(--bg); }
-    .row.focus.m-delete .t { color: color-mix(in srgb, var(--bg) 58%, transparent); }
-    .row.focus .date { color: color-mix(in srgb, var(--bg) 58%, transparent); }
-    .row.focus .cb { border-color: color-mix(in srgb, var(--bg) 45%, transparent); }
-    .row.focus .cb:checked { background: var(--bg); border-color: var(--bg); box-shadow: inset 0 0 0 2.5px var(--fg); }
-    .badge {
-      display: inline-block; margin-right: 8px; padding: 0 5px; border-radius: 4px; border: 1px solid var(--line2);
-      font: 10.5px/16px var(--mono); color: var(--fg3); vertical-align: 1px;
-    }
-    .row.focus .badge { border-color: color-mix(in srgb, var(--bg) 30%, transparent); color: color-mix(in srgb, var(--bg) 62%, transparent); }
+    .row.focus.m-delete .t { color: color-mix(in srgb, var(--bg) 55%, transparent); }
+    .chip { display: inline-block; margin-right: 8px; padding: 0 6px; border-radius: 4px; background: var(--fill2); font-size: 12px; line-height: 18px; color: var(--fg2); vertical-align: 1px; }
+    .row.focus .chip { background: color-mix(in srgb, var(--bg) 18%, transparent); color: var(--bg); }
     .end { position: relative; display: flex; align-items: center; justify-content: flex-end; }
-    .tag {
-      max-width: 240px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 6px; border-radius: 4px;
-      font: 600 10px/18px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--fg2);
-      transition: opacity .14s, color .18s, background-color .18s;
-    }
-    .tag.fresh { animation: slide .24s var(--ease) both; }
-    .tag.delete { color: var(--red); }
-    .tag.prot { color: var(--fg3); }
-    .tag .v { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--fg); }
-    .row.focus .tag, .row.focus .tag .v { color: var(--bg); }
-    .row.focus .tag.delete { color: #fff; background: var(--red); }
+    .mark { max-width: 230px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; color: var(--fg2); transition: opacity .15s; }
+    .mark.delete { color: var(--red); }
+    .mark.prot { display: inline-flex; align-items: center; gap: 5px; color: var(--fg3); }
+    .mark .v { color: var(--fg); }
+    .mark.fresh { animation: slide .26s var(--ease) both; }
+    .row.focus .mark, .row.focus .mark .v { color: var(--bg); }
+    .row.focus .mark.delete { padding: 2px 7px; border-radius: 5px; background: var(--red); color: #fff; }
     .acts {
-      position: absolute; right: -6px; top: 50%; transform: translateY(-50%); display: flex; gap: 2px; padding-left: 30px;
-      opacity: 0; pointer-events: none; transition: opacity .15s; background: linear-gradient(to right, transparent, var(--bg2) 26px);
+      position: absolute; right: -6px; top: 50%; transform: translateY(-50%); display: flex; gap: 2px; padding-left: 28px;
+      opacity: 0; pointer-events: none; transition: opacity .15s; background: linear-gradient(to right, transparent, var(--fill) 24px);
     }
     .row:hover .acts { opacity: 1; pointer-events: auto; }
-    .row:hover .tag { opacity: 0; }
-    .row.sel .acts { background: linear-gradient(to right, transparent, var(--bg3) 26px); }
-    .row.focus .acts { background: linear-gradient(to right, transparent, var(--fg) 26px); }
-    .mini {
-      width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--fg2); cursor: pointer;
-      display: grid; place-items: center; transition: background-color .12s, color .12s;
-    }
-    .mini:hover { background: var(--bg3); color: var(--fg); }
+    .row:hover .mark { opacity: 0; }
+    .row.sel .acts { background: linear-gradient(to right, transparent, var(--fill2) 24px); }
+    .row.focus .acts { background: linear-gradient(to right, transparent, var(--fg) 24px); }
+    .mini { width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: var(--fg2); cursor: pointer; display: grid; place-items: center; transition: background-color .12s, color .12s; }
+    .mini:hover { background: var(--fill2); color: var(--fg); }
     .mini.on { color: var(--fg); }
     .row.focus .mini { color: color-mix(in srgb, var(--bg) 70%, transparent); }
     .row.focus .mini:hover { background: color-mix(in srgb, var(--bg) 16%, transparent); color: var(--bg); }
 
-    .note { padding: 48px 24px; text-align: center; font: 12.5px/1.9 var(--mono); color: var(--fg3); animation: fade .3s var(--ease) both; }
-    .note b { color: var(--fg); font-weight: 500; }
-    .note .btn { margin-top: 16px; }
-    .spin { display: inline-block; width: 1ch; margin-right: 1ch; color: var(--fg); }
+    .note { padding: 48px 24px; text-align: center; color: var(--fg3); animation: fade .3s var(--ease) both; }
+    .note .btn { margin-top: 14px; }
+    .spin { display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -1px; border-radius: 50%; border: 1.5px solid var(--fill2); border-top-color: var(--fg); animation: spin .8s linear infinite; }
 
     /* Reader */
-    .reader { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
-    .rhead { padding: 28px 44px 20px; border-bottom: 1px solid var(--line); }
-    .rhead.fresh > * { animation: up .32s var(--ease) both; }
-    .rhead.fresh > :nth-child(2) { animation-delay: .03s; }
-    .rhead.fresh > :nth-child(3) { animation-delay: .06s; }
-    .rhead.fresh > :nth-child(4) { animation-delay: .09s; }
-    .rtitle { margin: 0 0 10px; font: 600 23px/1.25 var(--sans); letter-spacing: -.018em; overflow-wrap: anywhere; }
-    .rmeta { display: flex; flex-wrap: wrap; gap: 4px 16px; font: 11.5px/1.5 var(--mono); color: var(--fg3); }
-    .rstate { margin-top: 14px; font: 600 10.5px/1.5 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--fg2); }
-    .rstate.delete { color: var(--red); }
-    .rstate .v { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--fg); }
-    .ractions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; }
-    .msgs { flex: 1; overflow: auto; overscroll-behavior: contain; padding: 32px 44px 72px; }
-    .msg { max-width: 700px; margin: 0 auto 30px; }
-    .msgs.enter .msg { animation: up .4s var(--ease) both; }
-    .msg .who { margin-bottom: 10px; font: 600 10px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--fg3); }
-    .msg .txt { font: 15px/1.72 var(--sans); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--fg); }
-    .msg.user .txt { padding-left: 15px; border-left: 1px solid var(--fg4); }
+    .col { width: 100%; max-width: 744px; margin: 0 auto; padding: 0 32px; display: flex; align-items: center; gap: 4px; min-width: 0; }
+    .reader .b1 .col > .btn:first-child { margin-left: -10px; }
+    .meta { gap: 18px; color: var(--fg3); white-space: nowrap; overflow: hidden; }
+    .meta .num { font: 12px/1 var(--mono); font-variant-numeric: tabular-nums; }
+    .meta .state { margin-left: auto; font-weight: 600; color: var(--fg2); overflow: hidden; text-overflow: ellipsis; }
+    .meta .state.delete { color: var(--red); }
+    .meta .state .v { font-weight: 400; color: var(--fg); }
+    .scroll { flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable both-edges; }
+    .scroll .col { display: block; padding-top: 36px; padding-bottom: 96px; }
+    .scroll h1 { margin: 0 0 28px; font: 600 24px/1.25 var(--sans); letter-spacing: -.02em; overflow-wrap: anywhere; }
+    .msg { margin-bottom: 28px; }
+    .msg .who { margin-bottom: 8px; font-size: 12px; font-weight: 600; color: var(--fg3); }
+    .msg .txt { font: 15px/1.65 var(--sans); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .msg.user .txt { padding: 12px 16px; border-radius: 12px; background: var(--fill); }
+    .enter h1, .enter .msg { animation: up .4s var(--ease) both; }
     .idle { height: 100%; display: grid; place-items: center; padding: 32px; animation: fade .4s var(--ease) both; }
-    .legend { font: 12px/1 var(--mono); color: var(--fg3); }
-    .legend .h { margin-bottom: 26px; text-align: center; font: 500 15px/1.4 var(--sans); color: var(--fg); letter-spacing: -.01em; }
-    .legend .grid { display: grid; grid-template-columns: auto auto auto auto; gap: 14px 12px; align-items: center; justify-content: center; }
-    .legend .grid .kbd { justify-self: end; }
-    .legend .grid .l { margin-right: 26px; }
-    .legend .f { margin-top: 28px; text-align: center; font: 12.5px/1.6 var(--sans); color: var(--fg3); }
+    .legend .h { margin-bottom: 22px; text-align: center; font-size: 15px; font-weight: 600; }
+    .legend .grid { display: grid; grid-template-columns: auto auto auto auto; gap: 12px 10px; align-items: center; justify-content: center; }
+    .legend .k { justify-self: end; font: 12px/1 var(--mono); color: var(--fg3); }
+    .legend .l { margin-right: 28px; color: var(--fg2); }
+    .legend .f { margin-top: 24px; text-align: center; color: var(--fg3); }
 
     /* Run */
     .runlayer {
-      position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; padding: 20px;
-      background: var(--veil); -webkit-backdrop-filter: blur(10px) saturate(120%); backdrop-filter: blur(10px) saturate(120%);
-      animation: fade .28s var(--ease) both;
+      position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; padding: 20px; background: var(--veil);
+      -webkit-backdrop-filter: blur(10px) saturate(120%); backdrop-filter: blur(10px) saturate(120%); animation: fade .28s var(--ease) both;
     }
-    .card { width: min(580px, 100%); max-height: 100%; overflow: auto; padding: 24px 26px 22px; background: var(--bg1); border: 1px solid var(--line2); border-radius: 16px; box-shadow: var(--shadow); animation: pop .36s var(--ease) both; }
+    .card { width: min(560px, 100%); max-height: 100%; overflow: auto; padding: 24px; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); animation: pop .36s var(--ease) both; }
     .card .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .card .state { display: flex; align-items: center; font: 600 10.5px/1 var(--mono); letter-spacing: .16em; color: var(--fg); }
+    .card .state { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 600; }
+    .card .state i { width: 7px; height: 7px; border-radius: 50%; background: var(--fg3); }
+    .card .state.go i { background: var(--green); animation: pulse 1.2s var(--ease) infinite; }
+    .card .state.wait i { background: var(--amber); animation: pulse 1.2s var(--ease) infinite; }
+    .card .state.hold i { background: var(--amber); }
+    .card .state.ok i { background: var(--green); }
     .card .state.bad { color: var(--red); }
+    .card .state.bad i { background: var(--red); }
     .card .frac { font: 12px/1 var(--mono); color: var(--fg3); font-variant-numeric: tabular-nums; }
     .card .frac b { color: var(--fg); font-weight: 600; }
-    .bar { height: 2px; margin: 18px 0 20px; border-radius: 2px; background: var(--line2); overflow: hidden; }
-    .bar i { display: block; height: 100%; width: 0; background: var(--fg); transition: width .7s var(--ease); }
-    .now { display: flex; gap: 12px; font: 13px/1.5 var(--mono); color: var(--fg); min-width: 0; }
-    .now .v { flex-shrink: 0; min-width: 15ch; color: var(--fg3); }
-    .now .ttl { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
-    .card .sub { margin-top: 6px; min-height: 18px; font: 12px/1.5 var(--mono); color: var(--fg3); font-variant-numeric: tabular-nums; }
-    .card .big { margin: 2px 0 6px; font: 300 46px/1.1 var(--mono); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
-    .card .explain { font: 13.5px/1.6 var(--sans); color: var(--fg2); }
-    .log { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); font: 12px/1 var(--mono); color: var(--fg3); max-height: 210px; overflow: auto; }
+    .bar { height: 3px; margin: 18px 0 20px; border-radius: 3px; background: var(--fill2); overflow: hidden; }
+    .bar i { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--fg); transition: width .7s var(--ease); }
+    .now { display: flex; gap: 12px; min-width: 0; }
+    .now .v { flex-shrink: 0; min-width: 96px; color: var(--fg3); }
+    .now .ttl { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .card .sub { margin-top: 6px; min-height: 18px; color: var(--fg3); font-variant-numeric: tabular-nums; }
+    .card .big { margin: 4px 0 6px; font: 300 44px/1.1 var(--mono); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+    .card .explain { color: var(--fg2); line-height: 1.55; }
+    .log { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--line); max-height: 210px; overflow: auto; }
     .log div { display: flex; gap: 12px; padding: 5px 0; white-space: nowrap; min-width: 0; }
     .log div.new { animation: up .32s var(--ease) both; }
-    .log .g { width: 1ch; flex-shrink: 0; color: var(--fg); }
-    .log .v { min-width: 11ch; flex-shrink: 0; }
-    .log .ttl { color: var(--fg2); overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-    .log .bad, .log .bad .g, .log .bad .ttl { color: var(--red); }
-    .log .why { color: var(--fg3); flex-shrink: 0; }
+    .log .g { width: 14px; flex-shrink: 0; color: var(--green); }
+    .log .v { min-width: 84px; flex-shrink: 0; color: var(--fg3); }
+    .log .ttl { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--fg2); }
+    .log .bad .g, .log .bad .v, .log .bad .ttl { color: var(--red); }
+    .log .unsure .g { color: var(--amber); }
+    .log .why { flex-shrink: 0; color: var(--fg3); }
     .card .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
-    .card .tip { margin-top: 16px; font: 12.5px/1.6 var(--sans); color: var(--fg3); }
+    .card .tip { margin-top: 16px; color: var(--fg3); line-height: 1.55; }
 
     /* Status bar */
-    .foot { display: flex; align-items: center; gap: 18px; height: 36px; padding: 0 20px; border-top: 1px solid var(--line); font: 11.5px/1 var(--mono); color: var(--fg3); flex-shrink: 0; }
+    .foot { height: 36px; flex-shrink: 0; display: flex; align-items: center; gap: 18px; padding: 0 var(--gutter); border-top: 1px solid var(--line); font-size: 12px; color: var(--fg3); }
     .foot .state { display: flex; align-items: center; gap: 8px; color: var(--fg); white-space: nowrap; font-variant-numeric: tabular-nums; }
-    .foot .state .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg4); transition: background-color .3s, box-shadow .3s; }
-    .foot .state.ready .dot { background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 20%, transparent); }
+    .foot .state .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg3); transition: background-color .3s, box-shadow .3s; }
+    .foot .state.ready .dot { background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 22%, transparent); }
     .foot .state.busy .dot { background: var(--green); animation: pulse 1.2s var(--ease) infinite; }
     .foot .state.wait .dot { background: var(--amber); animation: pulse 1.2s var(--ease) infinite; }
     .foot .state.hold .dot { background: var(--amber); }
-    .foot .state.bad { color: var(--red); } .foot .state.bad .dot { background: var(--red); }
+    .foot .state.bad { color: var(--red); }
+    .foot .state.bad .dot { background: var(--red); }
     .foot .status { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .foot .links { margin-left: auto; display: flex; gap: 2px; }
-    .foot .btn { height: 24px; padding: 0 8px; font-size: 11px; border-color: transparent; color: var(--fg3); }
-    .foot .btn:hover:not(:disabled) { color: var(--fg); background: var(--bg2); border-color: transparent; }
-    .foot .btn.on { color: var(--fg); background: var(--bg2); border-color: transparent; }
-    .drawer { height: 210px; overflow: auto; padding: 12px 20px; border-top: 1px solid var(--line); background: var(--bg1); font: 11.5px/1.75 var(--mono); color: var(--fg2); animation: up .24s var(--ease) both; }
-    .drawer .head { margin-bottom: 8px; font-family: var(--sans); font-size: 12px; color: var(--fg3); }
-    .drawer .s429 { color: var(--fg); font-weight: 600; }
+    .foot .btn { height: 26px; padding: 0 8px; font-size: 12px; color: var(--fg3); }
+    .foot .btn:hover:not(:disabled) { color: var(--fg); }
+    .foot .btn.on { color: var(--fg); background: var(--fill); }
+    .drawer { height: 210px; overflow: auto; padding: 12px var(--gutter); border-top: 1px solid var(--line); background: var(--raised); font: 12px/1.7 var(--mono); color: var(--fg2); animation: up .24s var(--ease) both; }
+    .drawer .head { margin-bottom: 8px; font-family: var(--sans); color: var(--fg3); }
+    .drawer .s429 { color: var(--amber); font-weight: 600; }
     .drawer .sbad { color: var(--red); }
 
     /* Dialogs */
@@ -1253,36 +1247,42 @@
     }
     .modal-wrap.leaving { animation: fade-out .15s var(--ease-in) both; pointer-events: none; }
     .modal-wrap.leaving .modal { animation: sink .15s var(--ease-in) both; }
-    .modal { width: min(520px, 100%); max-height: calc(100vh - 48px); overflow: auto; padding: 26px 28px 22px; background: var(--bg1); border: 1px solid var(--line2); border-radius: 16px; box-shadow: var(--shadow); animation: pop .32s var(--ease) both; }
-    .modal h2 { margin: 0 0 18px; font: 600 19px/1.3 var(--sans); letter-spacing: -.015em; }
-    .modal p, .modal .hint { margin: 0 0 12px; font: 14px/1.6 var(--sans); color: var(--fg2); }
-    .modal .hint { font-size: 13px; color: var(--fg3); }
-    .modal .lbl { margin: 22px 0 10px; font: 600 10.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--fg3); }
+    .modal { width: min(500px, 100%); max-height: calc(100vh - 48px); overflow: auto; padding: 24px; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); animation: rise .32s var(--ease) both; }
+    .modal h2 { margin: 0 0 16px; font: 600 18px/1.3 var(--sans); letter-spacing: -.015em; }
+    .modal p { margin: 0 0 12px; color: var(--fg2); line-height: 1.55; }
+    .modal .hint { margin: 0 0 12px; font-size: 12px; color: var(--fg3); line-height: 1.5; }
+    .modal .lbl { margin: 20px 0 8px; font-size: 12px; font-weight: 600; color: var(--fg3); }
     .modal .mfoot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
     .modal input[type=text], .modal input[type=number] {
-      width: 100%; height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line2); background: transparent;
-      font: 13.5px/1 var(--mono); outline: none; transition: border-color .18s;
+      width: 100%; height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--fill); font: 13px/1 var(--sans);
+      outline: none; box-shadow: inset 0 0 0 1.5px transparent; transition: box-shadow .15s;
     }
-    .modal input[type=number] { width: 80px; }
-    .modal input:focus { border-color: var(--fg); }
-    .check { display: flex; gap: 12px; align-items: flex-start; margin: 14px 0; cursor: pointer; }
-    .check .cb { margin-top: 3px; }
-    .check .t { font: 13px/1.5 var(--mono); color: var(--fg); }
-    .check .h { margin-top: 2px; font: 13px/1.5 var(--sans); color: var(--fg3); }
-    .table { border-top: 1px solid var(--line); font: 13px/1 var(--mono); }
-    .table div { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--line); }
-    .table .n { font-weight: 600; font-variant-numeric: tabular-nums; }
-    .table .x { margin-left: 12px; font-size: 11px; color: var(--fg3); }
+    .modal input[type=number] { width: 72px; font-family: var(--mono); }
+    .modal input:focus { box-shadow: inset 0 0 0 1.5px var(--fg); }
+    .check { display: flex; gap: 12px; align-items: flex-start; margin: 12px 0; cursor: pointer; }
+    .check .cb { margin-top: 2px; }
+    .check .h { margin-top: 2px; font-size: 12px; color: var(--fg3); }
+    .table div { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .table div:first-child { border-top: 1px solid var(--line); }
+    .table .n { font: 600 12px/1 var(--mono); font-variant-numeric: tabular-nums; }
+    .table .x { margin-left: 10px; font-size: 12px; color: var(--fg3); }
     .table .del, .table .del .x { color: var(--red); }
-    .eta { margin: 12px 0 4px; font: 12px/1.6 var(--mono); color: var(--fg3); }
-    .keys { display: grid; grid-template-columns: max-content 1fr; gap: 10px 18px; align-items: center; font: 12.5px/1.4 var(--mono); color: var(--fg2); }
-    .keys .kbd { margin-right: 4px; }
-    .inline { display: flex; align-items: center; gap: 10px; font: 13px/1 var(--mono); color: var(--fg2); }
-    .stack { display: flex; flex-wrap: wrap; gap: 8px; }
+    .eta { margin: 12px 0 4px; color: var(--fg3); }
+    .eta .num { font-family: var(--mono); color: var(--fg2); }
+    .keys { display: grid; grid-template-columns: 112px 1fr; gap: 8px 16px; align-items: baseline; }
+    .keys .k { font: 12px/1.4 var(--mono); color: var(--fg); }
+    .keys .d { color: var(--fg2); }
+    .inline { display: flex; align-items: center; gap: 10px; color: var(--fg2); }
+    .stack { display: flex; flex-wrap: wrap; gap: 2px; margin-left: -10px; }
+    .seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 10px; background: var(--fill); }
+    .seg button { height: 28px; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; color: var(--fg2); transition: background-color .2s var(--ease), color .2s; }
+    .seg button:hover { color: var(--fg); }
+    .seg button.on { background: var(--raised); color: var(--fg); box-shadow: 0 1px 3px rgba(0, 0, 0, .14); }
+    .root.dark .seg button.on { background: var(--fill2); }
 
     .toast {
       position: fixed; left: 50%; bottom: 56px; z-index: 9; transform: translateX(-50%); max-width: min(560px, calc(100vw - 32px));
-      padding: 10px 16px; border-radius: 10px; background: var(--fg); color: var(--bg); font: 12px/1.45 var(--mono);
+      padding: 10px 16px; border-radius: 10px; background: var(--fg); color: var(--bg); line-height: 1.45;
       box-shadow: var(--shadow); animation: toast .32s var(--ease) both;
     }
     .toast.leaving { animation: toast-out .2s var(--ease-in) both; }
@@ -1290,21 +1290,30 @@
     @media (max-width: 980px) {
       .queue { display: none; }
       .main { flex-direction: column; }
-      .left { width: auto; min-width: 0; height: 52%; border-right: 0; border-bottom: 1px solid var(--line); }
-      .rhead, .msgs { padding-left: 22px; padding-right: 22px; }
+      .left { width: auto; min-width: 0; height: 50%; border-right: 0; border-bottom: 1px solid var(--line); }
+      .col { padding: 0 20px; }
     }
     @media (max-width: 640px) {
-      .top { gap: 10px; padding: 0 12px; }
-      .brand .ver, .tab .n { display: none; }
+      .top { gap: 14px; padding: 0 12px; }
+      .tabbtns { gap: 14px; }
+      .tab .n { display: none; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
     }
   `;
 
-  const SPIN = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏";
-  const spinner = () => h("span", { class: "spin", "aria-hidden": "true" }, SPIN[0]);
+  // The reveal needs a few rules on the page itself, because the browser draws
+  // the theme-switch snapshots outside Triage's own shadow DOM.
+  const PAGE_CSS = `
+    html.${APP}-reveal::view-transition-old(root), html.${APP}-reveal::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+    html.${APP}-reveal::view-transition-old(root) { z-index: 1; }
+    html.${APP}-reveal::view-transition-new(root) { z-index: 2; }
+  `;
+
+  const spinner = () => h("span", { class: "spin", "aria-hidden": "true" });
   const pad2 = (n) => String(n).padStart(2, "0");
+  const num = (n) => h("span", { class: "num" }, String(n));
 
   function isoDate(t) {
     if (!t) return "—";
@@ -1317,6 +1326,11 @@
     const hours = Math.floor(s / 3600);
     const mins = Math.floor((s % 3600) / 60);
     return hours ? `${hours}:${pad2(mins)}:${pad2(s % 60)}` : `${pad2(mins)}:${pad2(s % 60)}`;
+  }
+
+  // replaceChildren turns null into the text "null", so drop empty slots first.
+  function put(parent, ...kids) {
+    parent.replaceChildren(...kids.flat(Infinity).filter((k) => k != null && k !== false));
   }
 
   const ui = {
@@ -1336,11 +1350,11 @@
     focusId: null,
     readerId: null,
     reader: null, // { id, status: "loading" | "ok" | "error", error }
-    readerHead: null,
     readerBody: null,
     order: [],
     rowEls: new Map(),
     drawer: null, // "activity" | "network" | null
+    menu: null, // { which, el, anchor }
     modal: null,
     modalClose: null,
     runSig: "",
@@ -1348,6 +1362,7 @@
     logSeen: 0,
     lastQueueTotal: null,
     themeOverride: null,
+    themeBusy: false,
     previewTimer: null,
     closeTimer: null,
     toastEl: null,
@@ -1381,10 +1396,20 @@
     ui.host = host;
     ui.root = root;
 
+    if (!document.getElementById(`${APP}-page`)) {
+      const pageStyle = document.createElement("style");
+      pageStyle.id = `${APP}-page`;
+      pageStyle.textContent = PAGE_CSS;
+      (document.head || document.documentElement).append(pageStyle);
+    }
+
     ui.launcher = h("button", { class: "launcher", type: "button", title: "Open Triage (Alt+Shift+T)", "aria-label": "Open Triage", onclick: () => ui.open() });
     ui.renderLauncher();
     root.append(ui.launcher, buildPanel());
     root.addEventListener("keydown", onKey);
+    root.addEventListener("mousedown", (e) => {
+      if (ui.menu && !e.composedPath().some((n) => n === ui.menu.el || n === ui.menu.anchor)) closeMenu();
+    });
     // Keep ChatGPT's own shortcuts from reacting to keys typed inside Triage.
     for (const type of ["keydown", "keyup", "keypress"]) {
       host.addEventListener(type, (e) => {
@@ -1396,20 +1421,96 @@
       if (!host.isConnected) document.body.append(host);
     }, 2000);
 
-    ui.syncTheme();
-    new MutationObserver(ui.syncTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style", "data-theme"] });
-    if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ui.syncTheme);
+    paintTheme(wantDark());
+    new MutationObserver(() => ui.syncTheme()).observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style", "data-theme"] });
+    if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => ui.syncTheme());
   };
+
+  // ---------------------------------------------------------------------------
+  // Theme: follows ChatGPT unless you pick light or dark. Switching by hand
+  // grows the new theme as a circle from the button you pressed, so every pixel
+  // changes on the same clock instead of in patches.
+  // ---------------------------------------------------------------------------
 
   const THEME_KEY = `${APP}:theme`;
   function themePref() {
+    if (ui.themeOverride) return ui.themeOverride;
     try {
       return localStorage.getItem(THEME_KEY) || "auto";
     } catch {
       return "auto";
     }
   }
-  function setThemePref(value) {
+
+  function wantDark() {
+    const pref = themePref();
+    const de = document.documentElement;
+    if (pref === "dark") return true;
+    if (pref === "light") return false;
+    if (de.classList.contains("dark")) return true;
+    if (de.classList.contains("light")) return false;
+    return Boolean(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  }
+
+  function paintTheme(dark) {
+    ui.root.classList.toggle("dark", dark);
+    const b = ui.el.themeBtn;
+    if (b && b.dataset.dark !== String(dark)) {
+      const label = dark ? "Switch to light mode" : "Switch to dark mode";
+      b.dataset.dark = String(dark);
+      b.title = label;
+      b.setAttribute("aria-label", label);
+      b.replaceChildren(icon(dark ? "sun" : "moon", 16));
+    }
+  }
+
+  // Changes the theme in one frame, with hover transitions paused so nothing lags behind.
+  function snapTheme(dark) {
+    ui.root.classList.add("no-anim");
+    paintTheme(dark);
+    requestAnimationFrame(() => requestAnimationFrame(() => ui.root.classList.remove("no-anim")));
+  }
+
+  function applyTheme(origin) {
+    const dark = wantDark();
+    if (ui.root.classList.contains("dark") === dark) {
+      paintTheme(dark);
+      return;
+    }
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!origin || !ui.isOpen || reduce || document.hidden || typeof document.startViewTransition !== "function") {
+      snapTheme(dark);
+      return;
+    }
+    const box = origin.getBoundingClientRect();
+    const x = box.left + box.width / 2;
+    const y = box.top + box.height / 2;
+    const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+    const de = document.documentElement;
+    ui.themeBusy = true;
+    de.classList.add(`${APP}-reveal`);
+    let transition;
+    try {
+      transition = document.startViewTransition(() => snapTheme(dark));
+    } catch {
+      de.classList.remove(`${APP}-reveal`);
+      ui.themeBusy = false;
+      snapTheme(dark);
+      return;
+    }
+    transition.ready.then(() => {
+      de.animate(
+        { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+        { duration: 560, easing: "cubic-bezier(.22, 1, .36, 1)", pseudoElement: "::view-transition-new(root)" },
+      );
+    }).catch(() => {});
+    transition.finished.finally(() => {
+      de.classList.remove(`${APP}-reveal`);
+      ui.themeBusy = false;
+    });
+  }
+
+  function setThemePref(value, origin) {
     try {
       if (value === "auto") localStorage.removeItem(THEME_KEY);
       else localStorage.setItem(THEME_KEY, value);
@@ -1417,34 +1518,24 @@
       /* storage blocked: the choice lasts until reload */
     }
     ui.themeOverride = value;
-    ui.syncTheme();
-  }
-  function toggleTheme() {
-    setThemePref(ui.root.classList.contains("dark") ? "light" : "dark");
+    applyTheme(origin);
   }
 
-  // Follows ChatGPT's theme unless you picked light or dark yourself.
+  function toggleTheme(e) {
+    setThemePref(ui.root.classList.contains("dark") ? "light" : "dark", e && e.currentTarget);
+  }
+
+  // Called when ChatGPT's own theme changes. Our own reveal also touches <html>, so skip that.
   ui.syncTheme = function syncTheme() {
-    const pref = ui.themeOverride || themePref();
-    const de = document.documentElement;
-    let dark;
-    if (pref === "dark") dark = true;
-    else if (pref === "light") dark = false;
-    else if (de.classList.contains("dark")) dark = true;
-    else if (de.classList.contains("light")) dark = false;
-    else dark = Boolean(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    const changed = ui.root.classList.contains("dark") !== dark || !ui.el.themeBtn || !ui.el.themeBtn.firstChild;
-    ui.root.classList.toggle("dark", dark);
-    if (changed && ui.el.themeBtn) {
-      const label = dark ? "Switch to light mode" : "Switch to dark mode";
-      ui.el.themeBtn.title = label;
-      ui.el.themeBtn.setAttribute("aria-label", label);
-      ui.el.themeBtn.replaceChildren(icon(dark ? "sun" : "moon", 16));
-    }
+    if (!ui.themeBusy) applyTheme(null);
   };
 
-  function iconBtn(name, title, onclick) {
-    return h("button", { class: "btn icon", type: "button", title, "aria-label": title, onclick }, icon(name, 16));
+  // ---------------------------------------------------------------------------
+  // Building the panel
+  // ---------------------------------------------------------------------------
+
+  function iconBtn(name, title, onclick, cls = "") {
+    return h("button", { class: `btn icon ${cls}`.trim(), type: "button", title, "aria-label": title, onclick }, icon(name, 16));
   }
 
   function buildPanel() {
@@ -1453,52 +1544,51 @@
     el.tabInd = h("span", { class: "tabind instant", "aria-hidden": "true" });
     el.tabs = h("div", { class: "tabs" }, el.tabBtns, el.tabInd);
     el.queue = h("div", { class: "queue", "aria-live": "polite" });
-    el.refresh = iconBtn("refresh", "Reload the chat list", () => reloadLists());
-    el.runBtn = h("button", { class: "btn primary run", type: "button", title: "Review the queue, then run it", onclick: () => confirmRun() });
-    el.themeBtn = h("button", { class: "btn icon theme", type: "button", onclick: () => toggleTheme() });
+    el.runBtn = h("button", { class: "run", type: "button", title: "Review the queue, then run it", onclick: () => confirmRun() });
+    el.themeBtn = h("button", { class: "btn icon theme", type: "button", onclick: toggleTheme });
     const top = h("div", { class: "top" },
-      h("div", { class: "brand", title: `Triage ${VERSION}` }, h("span", { class: "word" }, "TRIAGE"), h("span", { class: "caret", "aria-hidden": "true" }), h("span", { class: "ver" }, `v${VERSION}`)),
+      h("div", { class: "brand", title: `Triage ${VERSION}` }, "Triage"),
       el.tabs,
       h("div", { class: "spacer" }),
       el.queue,
       h("div", { class: "actions" },
-        el.refresh,
+        el.runBtn,
         el.themeBtn,
         iconBtn("sliders", "Settings", () => openSettings()),
-        iconBtn("help", "Help and shortcuts (?)", () => openHelp()),
-        el.runBtn,
         iconBtn("x", "Close. Your marks are saved.", () => ui.close())));
 
     el.banners = h("div", { class: "banners" });
 
+    // Left column
     el.search = h("input", {
-      class: "search", type: "search", placeholder: "Search titles and opened chats",
-      title: "Searches every title, plus the text of chats you've opened in Triage", "aria-label": "Search",
+      type: "text", placeholder: "Search titles and opened chats", "aria-label": "Search",
+      title: "Searches every title, plus the text of chats you've opened in Triage",
       oninput: (e) => {
         ui.filters.q = e.target.value;
         ui.renderList();
       },
     });
-    el.age = select([[0, "Any age"], [7 * DAY, "Older than 1 week"], [30 * DAY, "Older than 1 month"], [90 * DAY, "Older than 3 months"], [180 * DAY, "Older than 6 months"], [365 * DAY, "Older than 1 year"]], 0, (v) => {
-      ui.filters.age = Number(v);
-      ui.renderList();
-    }, "Age");
-    el.sort = select([["oldest", "Oldest first"], ["newest", "Newest first"], ["updated", "Recently used"]], "oldest", (v) => {
-      ui.filters.sort = v;
-      ui.renderList();
-    }, "Sort");
-    el.chips = h("div", { class: "chips" },
-      chip("unread", "Unread", "Only chats you haven't opened in Triage"),
-      chip("untitled", "Untitled", "Only chats called “New chat” or with no title"),
-      chip("marked", "Marked", "Only chats with a queued change"));
-    const tools = h("div", { class: "tools" }, el.search, el.age, el.sort, el.chips);
-
-    el.listhead = h("div", { class: "listhead" });
+    el.filterBtn = h("button", { class: "btn quiet", type: "button", "aria-haspopup": "menu", onclick: () => toggleMenu("filter", el.filterBtn) });
+    el.refresh = iconBtn("refresh", "Reload the chat list", () => reloadLists());
+    el.listhead = h("div", { class: "band b2" });
     el.cursor = h("div", { class: "cursor instant", "aria-hidden": "true" });
     el.rows = h("div", { class: "rows" });
     el.list = h("div", { class: "list", tabindex: "0", role: "listbox", "aria-label": "Chats", onclick: onListClick }, el.cursor, el.rows);
-    el.left = h("div", { class: "left" }, tools, el.listhead, el.list);
-    el.reader = h("div", { class: "reader" });
+    el.left = h("div", { class: "left" },
+      h("div", { class: "band b1" },
+        h("label", { class: "search" }, icon("search", 16), el.search, h("span", { class: "key" }, "/")),
+        h("div", { class: "pop" }, el.filterBtn)),
+      el.listhead,
+      el.list);
+
+    // Right column: every part shares one centred column
+    el.actionsCol = h("div", { class: "col" });
+    el.metaCol = h("div", { class: "col meta" });
+    el.scroll = h("div", { class: "scroll" });
+    el.reader = h("div", { class: "reader" },
+      h("div", { class: "band b1" }, el.actionsCol),
+      h("div", { class: "band b2" }, el.metaCol),
+      el.scroll);
     el.runLayer = h("div", { class: "runlayer", hidden: true });
     el.main = h("div", { class: "main" }, el.left, el.reader, el.runLayer);
 
@@ -1508,33 +1598,96 @@
     el.networkBtn = h("button", { class: "btn", type: "button", title: "Every request Triage has sent", onclick: () => toggleDrawer("network") }, "Network");
     el.drawerEl = h("div", { class: "drawer", hidden: true });
     const foot = h("div", { class: "foot" }, el.state, el.status,
-      h("div", { class: "links" }, el.activityBtn, el.networkBtn, h("a", { class: "btn", href: HOMEPAGE, target: "_blank", rel: "noopener noreferrer" }, "GitHub ↗")));
+      h("div", { class: "links" }, el.activityBtn, el.networkBtn,
+        h("a", { class: "btn", href: HOMEPAGE, target: "_blank", rel: "noopener noreferrer" }, "GitHub ↗"),
+        h("button", { class: "btn", type: "button", onclick: () => openHelp() }, "? Shortcuts")));
 
     ui.panel = h("div", { class: "panel", hidden: true, tabindex: "-1", role: "dialog", "aria-label": "Triage" }, top, el.banners, el.main, el.drawerEl, foot);
+    renderFilterButton();
     return ui.panel;
-  }
-
-  function select(options, value, onChange, label) {
-    const s = h("select", { class: "select", "aria-label": label, onchange: (e) => onChange(e.target.value) },
-      options.map(([v, text]) => h("option", { value: String(v) }, text)));
-    s.value = String(value);
-    return s;
-  }
-
-  function chip(key, label, title) {
-    const b = h("button", { class: "chip", type: "button", title, "aria-pressed": "false" }, label);
-    b.addEventListener("click", () => {
-      ui.filters[key] = !ui.filters[key];
-      b.classList.toggle("on", ui.filters[key]);
-      b.setAttribute("aria-pressed", String(ui.filters[key]));
-      ui.renderList();
-    });
-    return b;
   }
 
   function check(input, label, help) {
     input.classList.add("cb");
-    return h("label", { class: "check" }, input, h("div", null, h("div", { class: "t" }, label), help ? h("div", { class: "h" }, help) : null));
+    return h("label", { class: "check" }, input, h("div", null, h("div", null, label), help ? h("div", { class: "h" }, help) : null));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Filter and sort menus
+  // ---------------------------------------------------------------------------
+
+  const AGES = [[0, "Any age"], [7 * DAY, "Older than 1 week"], [30 * DAY, "Older than 1 month"], [90 * DAY, "Older than 3 months"], [180 * DAY, "Older than 6 months"], [365 * DAY, "Older than 1 year"]];
+  const SORTS = [["oldest", "Oldest first"], ["newest", "Newest first"], ["updated", "Recently used"]];
+
+  function activeFilters() {
+    const f = ui.filters;
+    return (f.unread ? 1 : 0) + (f.untitled ? 1 : 0) + (f.marked ? 1 : 0) + (f.age ? 1 : 0);
+  }
+
+  function renderFilterButton() {
+    const n = activeFilters();
+    put(ui.el.filterBtn, icon("filter", 16), "Filter", n ? h("span", { class: "fcount" }, String(n)) : null);
+  }
+
+  function menuOpt(label, on, group, onPick, title) {
+    return h("button", {
+      class: `opt${on ? " on" : ""}`, type: "button", role: "menuitemcheckbox", "aria-checked": String(Boolean(on)), title, "data-group": group,
+      onclick: (e) => {
+        e.stopPropagation();
+        const b = e.currentTarget;
+        if (group === "toggle") b.classList.toggle("on");
+        else for (const sib of b.parentElement.querySelectorAll(`[data-group="${group}"]`)) sib.classList.toggle("on", sib === b);
+        b.setAttribute("aria-checked", String(b.classList.contains("on")));
+        onPick();
+      },
+    }, h("span", null, label), icon("check", 15));
+  }
+
+  function toggleMenu(which, anchor) {
+    if (ui.menu && ui.menu.which === which) {
+      closeMenu();
+      return;
+    }
+    closeMenu();
+    const f = ui.filters;
+    const after = () => {
+      renderFilterButton();
+      ui.renderList();
+    };
+    let menu;
+    if (which === "filter") {
+      const toggle = (key, label, title) => menuOpt(label, f[key], "toggle", () => {
+        f[key] = !f[key];
+        after();
+      }, title);
+      menu = h("div", { class: "menu right", role: "menu" },
+        h("div", { class: "mh" }, "Show only"),
+        toggle("unread", "Unread", "Chats you haven't opened in Triage"),
+        toggle("untitled", "Untitled", "Chats called “New chat” or with no title"),
+        toggle("marked", "Marked", "Chats with a queued change"),
+        h("hr"),
+        h("div", { class: "mh" }, "Age"),
+        AGES.map(([ms, label]) => menuOpt(label, f.age === ms, "age", () => {
+          f.age = ms;
+          after();
+        })));
+    } else {
+      menu = h("div", { class: "menu right", role: "menu" },
+        h("div", { class: "mh" }, "Sort"),
+        SORTS.map(([key, label]) => menuOpt(label, f.sort === key, "sort", () => {
+          f.sort = key;
+          closeMenu();
+          ui.renderList();
+        })));
+    }
+    anchor.parentElement.append(menu);
+    ui.menu = { which, el: menu, anchor };
+  }
+
+  function closeMenu() {
+    if (!ui.menu) return;
+    ui.menu.el.remove();
+    ui.menu = null;
   }
 
   // ---------------------------------------------------------------------------
@@ -1554,6 +1707,7 @@
 
   ui.close = function close() {
     closeModal();
+    closeMenu();
     ui.isOpen = false;
     ui.panel.classList.add("leaving");
     clearTimeout(ui.closeTimer);
@@ -1678,11 +1832,11 @@
       ["archived", n.archived, "Chats you've archived. They load when you open this tab."],
       ["all", n.all, "Main and project chats together"],
     ];
-    ui.el.tabBtns.replaceChildren(...tabs.map(([key, count, title]) => h("button", {
+    put(ui.el.tabBtns, tabs.map(([key, count, title]) => h("button", {
       class: `tab${ui.filters.scope === key ? " on" : ""}`, type: "button", role: "tab", title,
       "aria-selected": String(ui.filters.scope === key),
       onclick: () => setScope(key),
-    }, h("span", null, TAB_LABEL[key]), h("span", { class: "n" }, count == null ? "·" : String(count)))));
+    }, h("span", null, TAB_LABEL[key]), count == null ? null : h("span", { class: "n" }, String(count)))));
     requestAnimationFrame(placeTabIndicator);
   };
 
@@ -1696,8 +1850,8 @@
     }
     const first = ind.style.opacity !== "1";
     ind.classList.toggle("instant", first);
-    ind.style.width = `${on.offsetWidth - 20}px`;
-    ind.style.transform = `translateX(${on.offsetLeft + 10}px)`;
+    ind.style.width = `${on.offsetWidth}px`;
+    ind.style.transform = `translateX(${on.offsetLeft}px)`;
     ind.style.opacity = "1";
     if (first) requestAnimationFrame(() => ind.classList.remove("instant"));
   }
@@ -1715,9 +1869,9 @@
     const q = queueCounts();
     const parts = [];
     for (const a of ["delete", "archive", "unarchive", "rename"]) {
-      if (q[a]) parts.push(h("span", { class: `q-${a}` }, `${ACTION[a].label} `, h("b", null, String(q[a]))));
+      if (q[a]) parts.push(h("span", { class: `q-${a}` }, ACTION[a].label, h("b", null, String(q[a]))));
     }
-    ui.el.queue.replaceChildren(...(parts.length ? parts : [h("span", null, "Queue Empty")]));
+    put(ui.el.queue, parts.length ? parts : h("span", null, "Queue Empty"));
     renderRunButton(q.total);
     ui.el.runBtn.disabled = !q.total || Runner.isActive() || Boolean(Store.data.run) || ui.lockedElsewhere || !Data.compatOk || Boolean(Data.loading);
     ui.el.refresh.disabled = Runner.isActive() || Boolean(Data.loading);
@@ -1727,25 +1881,26 @@
     const btn = ui.el.runBtn;
     const bump = ui.lastQueueTotal !== null && total !== ui.lastQueueTotal && total > 0;
     ui.lastQueueTotal = total;
-    btn.classList.toggle("has-count", total > 0);
-    btn.replaceChildren(...[icon("play", 11), h("span", null, "Run Queue"), total ? h("span", { class: `count${bump ? " bump" : ""}` }, String(total)) : null].filter(Boolean));
+    put(btn,
+      h("span", { class: "go" }, icon("play", 11), "Run Queue"),
+      total ? h("span", { class: `count${bump ? " bump" : ""}` }, h("span", null, String(total))) : null);
   }
 
   ui.renderBanners = function renderBanners() {
     const out = [];
     const left = Api.cooldownLeft();
     if (left > 0 && !Runner.isActive()) {
-      out.push(h("div", { class: "banner" }, h("span", { class: "lbl" }, "WAIT"),
+      out.push(h("div", { class: "banner" }, h("b", null, "Waiting"),
         h("span", null, `ChatGPT asked Triage to slow down. Reading and running resume at ${fmtClock(Store.data.cooldownUntil)}.`),
         h("span", { class: "clock", "data-countdown": "" }, clock(left))));
     }
     if (ui.lockedElsewhere) {
-      out.push(h("div", { class: "banner" }, h("span", { class: "lbl" }, "BUSY"), h("span", null, "Triage is running a queue in another tab. Use that tab, or close it and reload this one.")));
+      out.push(h("div", { class: "banner" }, h("b", null, "Busy"), h("span", null, "Triage is running a queue in another tab. Use that tab, or close it and reload this one.")));
     }
     if (!Data.compatOk) {
-      out.push(h("div", { class: "banner bad" }, h("span", { class: "lbl" }, "OFF"), h("span", null, "ChatGPT's data looks different from what Triage expects, so changes are switched off. Reading still works. Check GitHub for an update.")));
+      out.push(h("div", { class: "banner bad" }, h("b", null, "Changes Off"), h("span", null, "ChatGPT's data looks different from what Triage expects, so changes are switched off. Reading still works. Check GitHub for an update.")));
     }
-    ui.el.banners.replaceChildren(...out);
+    put(ui.el.banners, out);
   };
 
   function visibleChats() {
@@ -1782,10 +1937,11 @@
   ui.renderList = function renderList() {
     const el = ui.el;
     ui.rowEls = new Map();
+    el.list.classList.toggle("selecting", ui.sel.size > 0);
     if (ui.fatal) {
       ui.order = [];
-      el.listhead.replaceChildren();
-      el.rows.replaceChildren(h("div", { class: "note" }, h("div", null, ui.fatal), h("button", { class: "btn", type: "button", onclick: () => retryBoot() }, "Try Again")));
+      put(el.listhead);
+      put(el.rows, h("div", { class: "note" }, h("div", null, ui.fatal), h("button", { class: "btn", type: "button", onclick: () => retryBoot() }, "Try Again")));
       placeCursor(false);
       return;
     }
@@ -1795,19 +1951,19 @@
     ui.order = rows.map((c) => c.id);
 
     if (loadingHere && !rows.length) {
-      el.listhead.replaceChildren();
+      put(el.listhead);
       const text = L.message || (L.waiting
         ? `ChatGPT asked Triage to slow down. Carrying on at ${fmtClock(Store.data.cooldownUntil)}.`
         : `Loading chats  ${L.n}${L.total ? ` / ~${L.total}` : ""}`);
-      el.rows.replaceChildren(h("div", { class: "note" }, spinner(), text));
+      put(el.rows, h("div", { class: "note" }, spinner(), text));
       placeCursor(false);
       return;
     }
 
     renderListHead(rows);
     if (!rows.length) {
-      const filtered = ui.filters.q || ui.filters.age || ui.filters.unread || ui.filters.untitled || ui.filters.marked;
-      el.rows.replaceChildren(h("div", { class: "note" }, h("div", null, filtered ? "No chats match these filters." : "No chats here."),
+      const filtered = ui.filters.q || activeFilters();
+      put(el.rows, h("div", { class: "note" }, h("div", null, filtered ? "No chats match these filters." : "No chats here."),
         filtered ? h("button", { class: "btn", type: "button", onclick: clearFilters }, "Clear Filters") : null));
       placeCursor(false);
       return;
@@ -1818,10 +1974,8 @@
       ui.rowEls.set(c.id, row);
       frag.append(row);
     }
-    if (loadingHere) {
-      frag.append(h("div", { class: "note" }, spinner(), L.waiting ? "Waiting for ChatGPT" : `Loading  ${L.n}${L.total ? ` / ~${L.total}` : ""}`));
-    }
-    el.rows.replaceChildren(frag);
+    if (loadingHere) frag.append(h("div", { class: "note" }, spinner(), L.waiting ? "Waiting for ChatGPT" : `Loading  ${L.n}${L.total ? ` / ~${L.total}` : ""}`));
+    put(el.rows, frag);
     if (ui.focusId && !ui.rowEls.has(ui.focusId)) ui.focusId = null;
     ui.fresh.clear();
     placeCursor(false);
@@ -1839,25 +1993,30 @@
       else for (const c of pickable) ui.sel.delete(c.id);
       ui.renderList();
     });
-    const parts = [all, h("span", null, `${rows.length} ${rows.length === 1 ? "Chat" : "Chats"}`)];
+    let label;
+    let group;
     if (ui.sel.size) {
       const archivedScope = ui.filters.scope === "archived";
-      parts.push(h("b", null, `${ui.sel.size} Selected`), h("span", { class: "grow" }),
+      label = h("span", { class: "head-label" }, h("b", null, String(ui.sel.size)), " Selected");
+      group = h("div", { class: "grp" },
         bulkBtn("delete"),
         archivedScope ? bulkBtn("unarchive") : bulkBtn("archive"),
-        h("button", { class: "btn small", type: "button", title: "Protect the selected chats (P)", onclick: () => applyAction("protect", selectedChats()) }, "Protect"),
-        h("button", { class: "btn small", type: "button", title: "Remove queued changes from the selected chats (C)", onclick: () => applyAction("clear", selectedChats()) }, "Clear"),
-        h("button", { class: "btn small ghost", type: "button", title: "Select the shown chats that aren't selected", onclick: invertSelection }, "Invert"),
-        h("button", { class: "btn small ghost", type: "button", onclick: () => { ui.sel.clear(); ui.renderList(); } }, "Deselect"));
+        h("button", { class: "btn", type: "button", title: "Protect the selected chats (P)", onclick: () => applyAction("protect", selectedChats()) }, "Protect"),
+        h("button", { class: "btn quiet", type: "button", title: "Remove queued changes from the selected chats (C)", onclick: () => applyAction("clear", selectedChats()) }, "Clear"),
+        h("button", { class: "btn quiet", type: "button", title: "Select the shown chats that aren't selected", onclick: invertSelection }, "Invert"),
+        h("button", { class: "btn quiet", type: "button", onclick: () => { ui.sel.clear(); ui.renderList(); } }, "Deselect"));
     } else {
-      parts.push(h("span", { class: "grow" }), h("span", null, "Click to read · Shift-click for a range · ? for keys"));
+      label = h("span", { class: "head-label" }, `${rows.length} ${rows.length === 1 ? "Chat" : "Chats"}`);
+      const sortLabel = SORTS.find(([k]) => k === ui.filters.sort)[1];
+      const sortBtn = h("button", { class: "btn quiet", type: "button", "aria-haspopup": "menu", onclick: (e) => toggleMenu("sort", e.currentTarget) }, sortLabel, icon("chevron", 14));
+      group = h("div", { class: "grp" }, h("div", { class: "pop" }, sortBtn), ui.el.refresh);
     }
-    ui.el.listhead.replaceChildren(...parts);
+    put(ui.el.listhead, h("span", { class: "gut" }, all), label, group);
   }
 
   function bulkBtn(action) {
     const a = ACTION[action];
-    return h("button", { class: `btn small t-${action}${action === "delete" ? " danger" : ""}`, type: "button", title: `${a.label} the selected chats (${a.key})`, onclick: () => applyAction(action, selectedChats()) }, a.label);
+    return h("button", { class: `btn t-${action}${action === "delete" ? " danger" : ""}`, type: "button", title: `${a.label} the selected chats (${a.key})`, onclick: () => applyAction(action, selectedChats()) }, a.label);
   }
 
   function rowEl(c) {
@@ -1871,25 +2030,25 @@
     if (d.seen[c.id]) cls.push("seen");
     if (mark) cls.push(`m-${mark.a}`);
     if (fresh) cls.push("fresh");
-    const badges = [];
-    if (c.pinned) badges.push(h("span", { class: "badge", title: "Pinned" }, "Pinned"));
-    if (c.projectId && ui.filters.scope !== "projects") badges.push(h("span", { class: "badge", title: "In a project" }, "Project"));
-    if (c.gptId) badges.push(h("span", { class: "badge", title: "Chat with a custom GPT" }, "GPT"));
+    const chips = [];
+    if (c.pinned) chips.push(h("span", { class: "chip", title: "Pinned" }, "Pinned"));
+    if (c.projectId && ui.filters.scope !== "projects") chips.push(h("span", { class: "chip", title: "In a project" }, "Project"));
+    if (c.gptId) chips.push(h("span", { class: "chip", title: "Chat with a custom GPT" }, "GPT"));
     const cb = h("input", { type: "checkbox", class: "cb", tabindex: "-1", "aria-label": "Select", disabled: prot });
     cb.checked = ui.sel.has(c.id);
     let tag = null;
-    if (prot) tag = h("span", { class: `tag prot${fresh ? " fresh" : ""}`, title: "Protected: Triage won't change this chat" }, "Protected");
-    else if (mark && mark.a === "rename") tag = h("span", { class: `tag rename${fresh ? " fresh" : ""}`, title: `Rename to ${quote(mark.t)}` }, "Rename → ", h("span", { class: "v" }, mark.t));
-    else if (mark) tag = h("span", { class: `tag ${mark.a}${fresh ? " fresh" : ""}` }, ACTION[mark.a].label);
+    if (prot) tag = h("span", { class: `mark prot${fresh ? " fresh" : ""}`, title: "Protected: Triage won't change this chat" }, icon("shield", 13), "Protected");
+    else if (mark && mark.a === "rename") tag = h("span", { class: `mark${fresh ? " fresh" : ""}`, title: `Rename to ${quote(mark.t)}` }, "Rename → ", h("span", { class: "v" }, mark.t));
+    else if (mark) tag = h("span", { class: `mark ${mark.a}${fresh ? " fresh" : ""}` }, ACTION[mark.a].label);
     const acts = h("span", { class: "acts" },
       miniBtn(c.archived ? "unarchive" : "archive", Boolean(mark && mark.a === (c.archived ? "unarchive" : "archive"))),
       miniBtn("delete", Boolean(mark && mark.a === "delete")),
       miniBtn("rename", Boolean(mark && mark.a === "rename")),
       miniBtn("protect", prot));
     return h("div", { class: cls.join(" "), "data-id": c.id, role: "option", "aria-selected": String(c.id === ui.focusId) },
-      cb,
+      h("span", { class: "gut" }, d.seen[c.id] ? null : h("span", { class: "dot", title: "Not opened yet" }), cb),
       h("span", { class: "date", title: c.created ? new Date(c.created).toLocaleString() : "" }, isoDate(c.created)),
-      h("span", { class: "title", title: c.title || "Untitled" }, badges, h("span", { class: "t" }, c.title || "Untitled")),
+      h("span", { class: "title", title: c.title || "Untitled" }, chips, h("span", { class: "t" }, c.title || "Untitled")),
       h("span", { class: "end" }, tag, acts));
   }
 
@@ -1917,7 +2076,7 @@
   }
 
   function idleLegend() {
-    const pair = (k, label) => [h("span", { class: "kbd" }, k), h("span", { class: "l" }, label)];
+    const pair = (k, label) => [h("span", { class: "k" }, k), h("span", { class: "l" }, label)];
     const any = Data.active.length || Data.archived.length;
     return h("div", { class: "idle" }, h("div", { class: "legend" },
       h("div", { class: "h" }, any ? "Pick a chat to read it here" : "Your chats will show up here"),
@@ -1930,12 +2089,13 @@
   }
 
   ui.renderReader = function renderReader() {
-    const box = ui.el.reader;
+    const el = ui.el;
     const c = ui.readerId ? Data.byId.get(ui.readerId) : null;
     if (!c) {
+      put(el.actionsCol);
+      put(el.metaCol);
       const key = `idle:${Data.active.length || Data.archived.length ? 1 : 0}`;
-      if (ui.readerBody !== key) box.replaceChildren(idleLegend());
-      ui.readerHead = null;
+      if (ui.readerBody !== key) put(el.scroll, idleLegend());
       ui.readerBody = key;
       return;
     }
@@ -1943,74 +2103,61 @@
     const mark = d.marks[c.id];
     const prot = Boolean(d.protect[c.id]);
     const conv = cache.get(c.id);
-    const meta = [
-      `Created ${isoDate(c.created)}`,
-      c.updated ? `Last Used ${isoDate(c.updated)}` : null,
-      conv ? `${conv.messages.length} ${conv.messages.length === 1 ? "Message" : "Messages"}` : null,
-      c.projectId ? "Project" : null,
-      c.gptId ? "Custom GPT" : null,
-      c.pinned ? "Pinned" : null,
-      c.archived ? "Archived" : null,
-    ].filter(Boolean);
-
-    let state = null;
-    if (prot) state = h("div", { class: "rstate" }, "Protected · Triage won't change this chat");
-    else if (mark && mark.a === "rename") state = h("div", { class: "rstate" }, "Queued · Rename → ", h("span", { class: "v" }, mark.t));
-    else if (mark) state = h("div", { class: `rstate ${mark.a}` }, `Queued · ${ACTION[mark.a].label}${mark.a === "delete" ? " · Can't be undone" : ""}`);
 
     const actionBtn = (action) => {
       const a = ACTION[action];
       const on = action === "protect" ? prot : Boolean(mark && mark.a === action);
       const label = action === "protect" ? (prot ? "Unprotect" : "Protect") : on ? `Unmark ${a.label}` : a.label;
       return h("button", { class: `btn${on ? " on" : ""}${action === "delete" ? " danger" : ""}`, type: "button", title: `${label} (${a.key})`, onclick: () => applyAction(action, [c]) },
-        h("span", { class: "k" }, a.key), label);
+        label, h("span", { class: "key" }, a.key));
     };
     const open = TEST.demo
-      ? h("button", { class: "btn ghost", type: "button", onclick: () => ui.toast("In the demo, chats don't open in ChatGPT.") }, "Open in ChatGPT ↗")
-      : h("a", { class: "btn ghost", href: `/c/${encodeURIComponent(c.id)}`, target: "_blank", rel: "noopener noreferrer" }, "Open in ChatGPT ↗");
-    const switched = ui.readerHead !== c.id;
-    ui.readerHead = c.id;
-    const head = h("div", { class: `rhead${switched ? " fresh" : ""}` },
-      h("h2", { class: "rtitle" }, c.title || "Untitled"),
-      h("div", { class: "rmeta" }, meta.map((m) => h("span", null, m))),
-      state,
-      h("div", { class: "ractions" },
-        actionBtn("delete"), c.archived ? actionBtn("unarchive") : actionBtn("archive"), actionBtn("rename"), actionBtn("protect"), open));
+      ? h("button", { class: "btn quiet", type: "button", onclick: () => ui.toast("In the demo, chats don't open in ChatGPT.") }, "Open in ChatGPT", icon("external", 15))
+      : h("a", { class: "btn quiet", href: `/c/${encodeURIComponent(c.id)}`, target: "_blank", rel: "noopener noreferrer" }, "Open in ChatGPT", icon("external", 15));
+    put(el.actionsCol, actionBtn("delete"), c.archived ? actionBtn("unarchive") : actionBtn("archive"), actionBtn("rename"), actionBtn("protect"), h("div", { class: "spacer" }), open);
+
+    let state = null;
+    if (prot) state = h("span", { class: "state" }, "Protected");
+    else if (mark && mark.a === "rename") state = h("span", { class: "state" }, "Queued: Rename → ", h("span", { class: "v" }, mark.t));
+    else if (mark) state = h("span", { class: `state ${mark.a}` }, `Queued: ${ACTION[mark.a].label}${mark.a === "delete" ? " · Can't be undone" : ""}`);
+    put(el.metaCol,
+      h("span", null, "Created ", num(isoDate(c.created))),
+      c.updated ? h("span", null, "Last Used ", num(isoDate(c.updated))) : null,
+      conv ? h("span", null, num(conv.messages.length), conv.messages.length === 1 ? " Message" : " Messages") : null,
+      c.projectId ? h("span", null, "Project") : null,
+      c.gptId ? h("span", null, "Custom GPT") : null,
+      c.pinned ? h("span", null, "Pinned") : null,
+      c.archived ? h("span", null, "Archived") : null,
+      state);
 
     // Only rebuild the conversation when it's a different chat or it just arrived, so marking doesn't make it jump.
     const rs = ui.reader && ui.reader.id === c.id ? ui.reader : null;
-    const bodyKey = conv ? `ok:${c.id}` : rs && rs.status === "error" ? `err:${c.id}:${rs.error && rs.error.kind}` : `load:${c.id}`;
-    const oldBody = box.querySelector(".msgs");
-    const oldHead = box.querySelector(".rhead");
-    if (ui.readerBody === bodyKey && oldBody && oldHead) {
-      oldHead.replaceWith(head);
-      return;
-    }
-    let body;
-    {
-      if (conv) {
-        body = h("div", { class: "msgs enter" }, conv.messages.length
+    const bodyKey = conv ? `ok:${c.id}:${c.title}` : rs && rs.status === "error" ? `err:${c.id}:${rs.error && rs.error.kind}` : `load:${c.id}`;
+    if (ui.readerBody === bodyKey) return;
+    ui.readerBody = bodyKey;
+    if (conv) {
+      const column = h("div", { class: "col enter" },
+        h("h1", null, c.title || "Untitled"),
+        conv.messages.length
           ? conv.messages.map((m, i) => {
-            const msg = h("div", { class: `msg ${m.role}` }, h("div", { class: "who" }, m.role === "user" ? "you" : "chatgpt"), h("div", { class: "txt" }, m.text));
-            msg.style.animationDelay = `${Math.min(i, 6) * 40}ms`;
+            const msg = h("div", { class: `msg ${m.role}` }, h("div", { class: "who" }, m.role === "user" ? "You" : "ChatGPT"), h("div", { class: "txt" }, m.text));
+            msg.style.animationDelay = `${Math.min(i + 1, 6) * 45}ms`;
             return msg;
           })
           : h("div", { class: "note" }, "This chat has no text messages to show."));
-        const entering = body;
-        setTimeout(() => entering.classList.remove("enter"), 900);
-      } else if (rs && rs.status === "error") {
-        const e = rs.error || {};
-        const text = e.kind === "cooldown" || e.kind === "ratelimit"
-          ? `ChatGPT asked Triage to slow down. You can read chats again at ${fmtClock(Store.data.cooldownUntil)}.`
-          : e.kind === "notfound" ? "This chat doesn't exist in ChatGPT any more." : `Couldn't load this chat. ${e.message || ""}`;
-        body = h("div", { class: "msgs" }, h("div", { class: "note" }, h("div", null, text),
-          e.kind === "notfound" ? null : h("button", { class: "btn", type: "button", onclick: () => openReader(c.id, true) }, "Try Again")));
-      } else {
-        body = h("div", { class: "msgs" }, h("div", { class: "note" }, spinner(), "Loading chat"));
-      }
-      ui.readerBody = bodyKey;
+      setTimeout(() => column.classList.remove("enter"), 900);
+      put(el.scroll, column);
+      el.scroll.scrollTop = 0;
+    } else if (rs && rs.status === "error") {
+      const e = rs.error || {};
+      const text = e.kind === "cooldown" || e.kind === "ratelimit"
+        ? `ChatGPT asked Triage to slow down. You can read chats again at ${fmtClock(Store.data.cooldownUntil)}.`
+        : e.kind === "notfound" ? "This chat doesn't exist in ChatGPT any more." : `Couldn't load this chat. ${e.message || ""}`;
+      put(el.scroll, h("div", { class: "col", style: "display:block" }, h("h1", null, c.title || "Untitled"),
+        h("div", { class: "note" }, h("div", null, text), e.kind === "notfound" ? null : h("button", { class: "btn", type: "button", onclick: () => openReader(c.id, true) }, "Try Again"))));
+    } else {
+      put(el.scroll, h("div", { class: "col", style: "display:block" }, h("h1", null, c.title || "Untitled"), h("div", { class: "note" }, spinner(), "Loading chat")));
     }
-    box.replaceChildren(head, body);
   };
 
   function renderState() {
@@ -2037,7 +2184,7 @@
       text = waiting();
     }
     el.className = `state ${cls}`;
-    el.replaceChildren(h("span", { class: "dot" }), text);
+    put(el, h("span", { class: "dot" }), text);
   }
 
   ui.renderStatus = function renderStatus() {
@@ -2071,7 +2218,7 @@
       dot = "ok";
       info = "Done";
     }
-    ui.launcher.replaceChildren(...[h("span", { class: `dot ${dot}` }), h("span", { class: "word" }, "TRIAGE"), info ? h("span", { class: "info" }, info) : null].filter(Boolean));
+    put(ui.launcher, h("span", { class: `dot ${dot}` }), "Triage", info ? h("span", { class: "info" }, info) : null);
   };
 
   ui.renderDrawer = function renderDrawer() {
@@ -2092,7 +2239,7 @@
       lines = [h("div", { class: "head" }, "What Triage has done in this tab.")];
       for (const x of activity.slice(-200)) lines.push(h("div", null, `${time(x.at)}  ${x.message}`));
     }
-    el.drawerEl.replaceChildren(...lines);
+    put(el.drawerEl, lines);
     el.drawerEl.scrollTop = el.drawerEl.scrollHeight;
   };
 
@@ -2121,11 +2268,11 @@
       if (ui.runSig !== "elsewhere") {
         ui.runSig = "elsewhere";
         ui.runEls = null;
-        el.runLayer.replaceChildren(h("div", { class: "card" },
-          h("div", { class: "head" }, h("div", { class: "state" }, "BUSY")),
+        put(el.runLayer, h("div", { class: "card" },
+          h("div", { class: "head" }, h("div", { class: "state hold" }, h("i"), "Busy in Another Tab")),
           h("div", { class: "bar" }, h("i")),
           h("div", { class: "explain" }, "Triage is working through a queue in another ChatGPT tab. Only one tab can run the queue at a time."),
-          h("div", { class: "btns" }, h("button", { class: "btn", type: "button", onclick: recheckOtherTab }, "Check Again"))));
+          h("div", { class: "btns" }, h("button", { class: "btn primary", type: "button", onclick: recheckOtherTab }, "Check Again"))));
       }
       return;
     }
@@ -2143,18 +2290,18 @@
     const unconfirmed = r.results.filter((x) => x.status === "unconfirmed").length;
     const live = ACTIVE.includes(r.status);
     const job = r.current ? r.jobs.find((j) => j.id === r.current) : null;
-    const label = {
-      backup: "BACKING UP", running: "RUNNING", waiting: "WAITING", verifying: "CHECKING", paused: "PAUSED",
-      done: failed || unconfirmed ? "DONE · NEEDS A LOOK" : "DONE", stopped: "STOPPED",
-    }[r.status] || "QUEUE";
-    const width = String(total).length;
+    const trouble = failed || unconfirmed;
+    const [label, light] = {
+      backup: ["Backing Up", "go"], running: ["Running", "go"], waiting: ["Waiting", "wait"], verifying: ["Checking", "go"],
+      paused: ["Paused", "hold"], done: trouble ? ["Done, Needs a Look", "bad"] : ["Done", "ok"], stopped: ["Stopped", "hold"],
+    }[r.status] || ["Queue", ""];
 
     const bar = h("i");
     bar.style.width = `${total ? Math.round((r.i / total) * 100) : 0}%`;
     const parts = [
       h("div", { class: "head" },
-        h("div", { class: `state${(r.status === "done" && (failed || unconfirmed)) ? " bad" : ""}` }, live ? spinner() : null, label),
-        h("div", { class: "frac" }, h("b", null, String(r.i).padStart(width, "0")), ` / ${total}`)),
+        h("div", { class: `state ${light}` }, h("i"), label),
+        h("div", { class: "frac" }, h("b", null, String(r.i)), ` / ${total}`)),
       h("div", { class: "bar" }, bar),
     ];
 
@@ -2184,41 +2331,40 @@
       parts.push(h("div", { class: "explain" }, `${bits.join(". ")}.`));
     }
 
-    // A terminal-style log: newest last. Finished runs list only what needs attention.
+    // A log: newest last. Finished runs list only what needs attention.
     const finished = r.status === "done" || r.status === "stopped" || r.status === "paused";
     const issues = r.results.filter((x) => x.status !== "done");
     const items = finished && issues.length ? issues.slice(-40) : r.results.slice(-6);
     if (items.length) {
       const glyph = { done: "✓", failed: "✕", unconfirmed: "~" };
-      const log = h("div", { class: "log" }, items.map((x, i) => {
+      parts.push(h("div", { class: "log" }, items.map((x, i) => {
         const isNew = r.results.length > ui.logSeen && i === items.length - 1 && !finished;
-        const bad = x.status !== "done";
-        return h("div", { class: `${bad ? "bad" : ""}${isNew ? " new" : ""}` },
+        const cls = x.status === "failed" ? "bad" : x.status === "unconfirmed" ? "unsure" : "";
+        return h("div", { class: `${cls}${isNew ? " new" : ""}` },
           h("span", { class: "g" }, glyph[x.status] || "·"),
           h("span", { class: "v" }, x.note === "It was already gone." ? "Gone" : ACTION[x.action].past),
           h("span", { class: "ttl" }, x.title || "Untitled", x.action === "rename" && x.newTitle ? ` → ${x.newTitle}` : ""),
-          bad && x.note ? h("span", { class: "why" }, x.note) : null);
-      }));
-      parts.push(log);
+          x.status !== "done" && x.note ? h("span", { class: "why" }, x.note) : null);
+      })));
       ui.logSeen = r.results.length;
     }
 
     const btns = [];
     if (live) {
-      btns.push(h("button", { class: "btn", type: "button", onclick: () => Runner.pause() }, "Pause"));
-      btns.push(h("button", { class: "btn ghost", type: "button", onclick: () => Runner.stop() }, "Stop"));
+      btns.push(h("button", { class: "btn primary", type: "button", onclick: () => Runner.pause() }, "Pause"));
+      btns.push(h("button", { class: "btn quiet", type: "button", onclick: () => Runner.stop() }, "Stop"));
     } else if (r.status === "paused") {
       btns.push(h("button", { class: "btn primary", type: "button", disabled: ui.lockedElsewhere, onclick: () => Runner.resume() }, "Resume"));
-      btns.push(h("button", { class: "btn ghost", type: "button", onclick: () => Runner.stop() }, "Stop"));
+      btns.push(h("button", { class: "btn quiet", type: "button", onclick: () => Runner.stop() }, "Stop"));
     } else {
       btns.push(h("button", { class: "btn primary", type: "button", onclick: () => Runner.dismiss() }, "Close"));
-      btns.push(h("button", { class: "btn", type: "button", onclick: downloadReport }, "Download Report"));
-      if (Runner.backup.length) btns.push(h("button", { class: "btn", type: "button", onclick: () => download(`chatgpt-triage-backup-${fileStamp()}.json`, JSON.stringify(Runner.backup, null, 2), "application/json") }, "Download Backup"));
+      btns.push(h("button", { class: "btn quiet", type: "button", onclick: downloadReport }, "Download Report"));
+      if (Runner.backup.length) btns.push(h("button", { class: "btn quiet", type: "button", onclick: () => download(`chatgpt-triage-backup-${fileStamp()}.json`, JSON.stringify(Runner.backup, null, 2), "application/json") }, "Download Backup"));
     }
     parts.push(h("div", { class: "btns" }, btns));
     if (live) parts.push(h("div", { class: "tip" }, "Keep this tab open. You can close this panel and keep using ChatGPT; the button in the corner shows progress. Other ChatGPT tabs and the desktop app share the same limit, so close them if you can."));
 
-    el.runLayer.replaceChildren(h("div", { class: "card", role: "status", "aria-live": "polite" }, parts));
+    put(el.runLayer, h("div", { class: "card", role: "status", "aria-live": "polite" }, parts));
     ui.runEls = { sub, big };
     tickRun();
   };
@@ -2343,11 +2489,8 @@
   function clearFilters() {
     Object.assign(ui.filters, { q: "", age: 0, unread: false, untitled: false, marked: false });
     ui.el.search.value = "";
-    ui.el.age.value = "0";
-    for (const b of ui.el.chips.children) {
-      b.classList.remove("on");
-      b.setAttribute("aria-pressed", "false");
-    }
+    closeMenu();
+    renderFilterButton();
     ui.renderList();
   }
 
@@ -2443,7 +2586,11 @@
     Store.data.seen[id] = 1;
     Store.save();
     const row = ui.rowEls.get(id);
-    if (row) row.classList.add("seen");
+    if (row) {
+      row.classList.add("seen");
+      const dot = row.querySelector(".dot");
+      if (dot) dot.remove();
+    }
     ui.renderStatus();
   }
 
@@ -2455,6 +2602,11 @@
   }
 
   function onKey(e) {
+    if (ui.menu && e.key === "Escape") {
+      e.preventDefault();
+      closeMenu();
+      return;
+    }
     if (ui.modal) {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -2599,12 +2751,13 @@
 
   function modal(title, body, buttons, { onClose } = {}) {
     closeModal();
+    closeMenu();
     const wrap = h("div", { class: "modal-wrap" });
     wrap.addEventListener("mousedown", (e) => {
       if (e.target === wrap) closeModal();
     });
     const foot = h("div", { class: "mfoot" }, buttons.map(([label, kind, fn]) => h("button", {
-      class: `btn ${kind || ""}`, type: "button",
+      class: `btn ${kind || "quiet"}`, type: "button",
       onclick: async () => {
         const keepOpen = fn ? await fn() : false;
         if (keepOpen !== true) closeModal();
@@ -2634,10 +2787,10 @@
 
   function openRename(c) {
     const mark = Store.data.marks[c.id];
-    const input = h("input", { type: "text", "aria-label": "New title", maxlength: "200" });
+    const input = h("input", { type: "text", "aria-label": "New name", maxlength: "200" });
     input.value = mark && mark.a === "rename" ? mark.t : c.title;
-    modal("Rename chat", [
-      h("div", { class: "lbl" }, "Now"),
+    modal("Rename Chat", [
+      h("div", { class: "lbl", style: "margin-top:0" }, "Now"),
       h("p", null, c.title || "Untitled"),
       h("div", { class: "lbl" }, "New Name"),
       input,
@@ -2678,13 +2831,13 @@
     const typed = h("input", { type: "text", placeholder: String(n.delete), "aria-label": "Type the number of chats to delete" });
     const body = [
       h("div", { class: "table" }, rows),
-      h("div", { class: "eta" }, `Changes: ${jobs.length}  ·  One every ${gap}s  ·  About ${minutes} min`),
+      h("div", { class: "eta" }, "One change every ", h("span", { class: "num" }, `${gap}s`), " · About ", h("span", { class: "num" }, String(minutes)), minutes === 1 ? " minute" : " minutes"),
       h("p", { class: "hint" }, "If ChatGPT says \"too many requests\", Triage waits as long as it asks and carries on by itself."),
     ];
     if (n.delete) body.push(check(backup, `Back up the ${plural(n.delete, "chat")} being deleted first`, "Saves one Markdown file before anything is deleted."));
     if (n.delete >= CFG.typeToConfirm) body.push(h("div", { class: "lbl" }, `Type ${n.delete} to Confirm`), typed);
     body.push(h("p", { class: "hint", style: "margin-top:16px" }, "Close other ChatGPT tabs and the desktop app while this runs. They share the same limit."));
-    const box = modal("Run the queue?", body, [
+    const box = modal("Run the Queue?", body, [
       ["Cancel"],
       [`Run ${jobs.length} ${jobs.length === 1 ? "Change" : "Changes"}`, "primary", () => {
         Store.data.settings.backup = backup.checked;
@@ -2703,6 +2856,22 @@
     }
   }
 
+  function themeSeg() {
+    const current = themePref();
+    const seg = h("div", { class: "seg", role: "group", "aria-label": "Theme" });
+    for (const [value, label] of [["auto", "Match ChatGPT"], ["light", "Light"], ["dark", "Dark"]]) {
+      seg.append(h("button", {
+        class: current === value ? "on" : "", type: "button",
+        onclick: (e) => {
+          const b = e.currentTarget;
+          for (const x of seg.children) x.classList.toggle("on", x === b);
+          setThemePref(value, b);
+        },
+      }, label));
+    }
+    return seg;
+  }
+
   function openSettings() {
     const s = Store.data.settings;
     const gap = h("input", { type: "number", min: String(CFG.gapMin), max: String(CFG.gapMax), step: "1", "aria-label": "Seconds between changes" });
@@ -2711,7 +2880,7 @@
     backup.checked = s.backup;
     const pinned = h("input", { type: "checkbox" });
     pinned.checked = s.pinnedInSelectAll;
-    const small = (label, fn) => h("button", { class: "btn small", type: "button", onclick: fn }, label);
+    const small = (label, fn) => h("button", { class: "btn quiet", type: "button", onclick: fn }, label);
     modal("Settings", [
       h("div", { class: "lbl", style: "margin-top:0" }, "Pace"),
       h("div", { class: "inline" }, h("span", null, "Wait"), gap, h("span", null, "seconds between changes")),
@@ -2727,6 +2896,7 @@
         small("Clear All Marks", () => resetState("marks", "Clear every queued change?")),
         small("Forget What I've Read", () => resetState("seen", "Mark every chat as unread again?")),
         small("Unprotect Everything", () => resetState("protect", "Remove protection from every chat?"))),
+      h("p", { class: "hint", style: "margin:18px 0 0" }, `Triage ${VERSION}`),
     ], [
       ["Cancel"],
       ["Save", "primary", () => {
@@ -2737,21 +2907,6 @@
         ui.renderAll();
       }],
     ]);
-  }
-
-  function themeSeg() {
-    const current = ui.themeOverride || themePref();
-    const seg = h("div", { class: "seg", role: "group", "aria-label": "Theme" });
-    for (const [value, label] of [["auto", "Match ChatGPT"], ["light", "Light"], ["dark", "Dark"]]) {
-      seg.append(h("button", {
-        class: current === value ? "on" : "", type: "button",
-        onclick: (e) => {
-          setThemePref(value);
-          for (const b of seg.children) b.classList.toggle("on", b === e.currentTarget);
-        },
-      }, label));
-    }
-    return seg;
   }
 
   function resetState(key, question) {
@@ -2766,30 +2921,30 @@
 
   function openHelp() {
     const keys = [
-      [["↑", "↓"], "Move; the chat opens on the right"],
-      [["J", "K"], "Move, the Vim way"],
-      [["Shift", "↑↓"], "Select while moving"],
-      [["Space"], "Select or unselect"],
-      [["D"], "Queue delete, then go to the next chat"],
-      [["A"], "Queue archive (unarchive in Archived)"],
-      [["R"], "Queue a new name"],
-      [["P"], "Protect, so it's never touched"],
-      [["C"], "Clear the queued change"],
-      [["/"], "Search"],
-      [["Esc"], "Clear the selection"],
-      [["Alt", "Shift", "T"], "Open or close Triage"],
+      ["↑ ↓", "Move; the chat opens on the right"],
+      ["J K", "Move, the Vim way"],
+      ["Shift ↑ ↓", "Select while moving"],
+      ["Space", "Select or unselect"],
+      ["D", "Queue delete, then go to the next chat"],
+      ["A", "Queue archive (unarchive in Archived)"],
+      ["R", "Queue a new name"],
+      ["P", "Protect, so it's never touched"],
+      ["C", "Clear the queued change"],
+      ["/", "Search"],
+      ["Esc", "Clear the selection"],
+      ["Alt Shift T", "Open or close Triage"],
     ];
-    modal("Triage", [
+    modal("Shortcuts and How It Works", [
       h("p", null, "Read your chats, mark what should happen to each one, then run the queue. ChatGPT doesn't change until you do, and your marks are saved in this browser."),
       h("div", { class: "lbl" }, "Keys"),
-      h("div", { class: "keys" }, keys.map(([ks, v]) => [h("span", null, ks.map((k) => h("span", { class: "kbd" }, k))), h("span", null, v)])),
+      h("div", { class: "keys" }, keys.map(([k, d]) => [h("span", { class: "k" }, k), h("span", { class: "d" }, d)])),
       h("div", { class: "lbl" }, "The Limit"),
       h("p", null, "One change at a time, with a pause between each. If ChatGPT says \"too many requests\", Triage stops every request, waits as long as ChatGPT asks (longer each time if it doesn't say), then carries on with the same chat."),
       h("div", { class: "lbl" }, "Safety"),
       h("p", null, "Project and pinned chats stay out of Main and select all. Deletes can be backed up first, and big deletes ask you to type the number. At the end, Triage reloads your list to check the changes stuck."),
       h("div", { class: "lbl" }, "Privacy"),
       h("p", null, "Triage runs in your browser and only talks to chatgpt.com. The Network button shows every request it sends."),
-      h("p", { class: "hint" }, `v${VERSION} · `, h("a", { href: HOMEPAGE, target: "_blank", rel: "noopener noreferrer", style: "text-decoration:underline" }, "Source on GitHub"), " · Not affiliated with OpenAI"),
+      h("p", { class: "hint" }, `Triage ${VERSION} · `, h("a", { href: HOMEPAGE, target: "_blank", rel: "noopener noreferrer", style: "text-decoration:underline" }, "Source on GitHub"), " · Not affiliated with OpenAI"),
     ], [["Close", "primary"]]);
   }
 
@@ -2851,7 +3006,7 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Clocks: countdowns, heartbeat, spinners
+  // Clock: countdowns and heartbeat
   // ---------------------------------------------------------------------------
 
   let hadCooldown = false;
@@ -2877,15 +3032,6 @@
     hadCooldown = cooling;
     if (!ui.isOpen) ui.renderLauncher();
   }, 500);
-
-  let spinFrame = 0;
-  setInterval(() => {
-    if (!ui.root || (!ui.isOpen && !ui.modal)) return;
-    const spins = ui.root.querySelectorAll(".spin");
-    if (!spins.length) return;
-    spinFrame = (spinFrame + 1) % SPIN.length;
-    for (const s of spins) s.textContent = SPIN[spinFrame];
-  }, 80);
 
   // ---------------------------------------------------------------------------
   // Start
