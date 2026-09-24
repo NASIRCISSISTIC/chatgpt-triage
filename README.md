@@ -6,7 +6,7 @@ ChatGPT has no way to select several chats at once. Deleting hundreds of them on
 
 > Too many requests. You're making requests too quickly. We've temporarily limited access to your conversations to protect your data.
 
-Triage is a free userscript that adds a cleanup workspace to chatgpt.com. You go through your chats oldest first, read each one in a side panel, and mark it: delete, archive, rename or protect. Nothing changes until you press **Run queue**. Then Triage works through the queue one change at a time. When ChatGPT says "too many requests", it stops, waits as long as ChatGPT asks, and carries on by itself.
+Triage is a free userscript that adds a cleanup workspace to chatgpt.com. You go through your chats oldest first, read each one in a side panel, and mark it: delete, archive, rename or protect. Nothing changes until you press **Run Queue**. Then Triage works through the queue one change at a time. When ChatGPT says "too many requests", it stops, waits as long as ChatGPT asks, and carries on by itself.
 
 ![Triage open on chatgpt.com, with a list of chats on the left and the selected chat on the right](docs/review-light.png)
 
@@ -22,6 +22,7 @@ Triage is a free userscript that adds a cleanup workspace to chatgpt.com. You go
 - **Built for big cleanups.** Filters for age, untitled and unread chats, search, shift-click ranges, select all and invert.
 - **A backup before deleting.** Before a delete run, Triage can save every chat about to be deleted to a Markdown file.
 - **Checks its own work.** At the end of a run, Triage reloads your list and flags anything that didn't actually go.
+- **Light or dark.** Triage matches ChatGPT's theme, or flip it yourself with the sun and moon button.
 
 ## How it stays under ChatGPT's limit
 
@@ -59,7 +60,7 @@ You'll need to paste it again after reloading the page. Only paste code you've r
 
 1. **Read and mark.** Go down the list. The chat opens on the right. Mark it or skip it.
 2. **Check the queue.** The top bar shows what's queued. The **Marked** filter shows only chats with a change waiting.
-3. **Run it.** Press **Run queue**, check the summary, and confirm. Deleting 20 or more chats asks you to type the number. You can close the panel while it runs; the corner button shows progress.
+3. **Run it.** Press **Run Queue**, check the summary, and confirm. Deleting 20 or more chats asks you to type the number. You can close the panel while it runs; the corner button shows progress.
 
 ![The confirmation before running the queue](docs/confirm.png)
 

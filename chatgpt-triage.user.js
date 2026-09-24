@@ -71,10 +71,10 @@
   const scaled = (ms) => Math.round(ms * SCALE);
 
   const ACTION = {
-    delete: { label: "Delete", verb: "deleting", past: "deleted", key: "D", icon: "trash" },
-    archive: { label: "Archive", verb: "archiving", past: "archived", key: "A", icon: "archive" },
-    unarchive: { label: "Unarchive", verb: "unarchiving", past: "unarchived", key: "U", icon: "restore" },
-    rename: { label: "Rename", verb: "renaming", past: "renamed", key: "R", icon: "pencil" },
+    delete: { label: "Delete", verb: "Deleting", past: "Deleted", key: "D", icon: "trash" },
+    archive: { label: "Archive", verb: "Archiving", past: "Archived", key: "A", icon: "archive" },
+    unarchive: { label: "Unarchive", verb: "Unarchiving", past: "Unarchived", key: "U", icon: "restore" },
+    rename: { label: "Rename", verb: "Renaming", past: "Renamed", key: "R", icon: "pencil" },
     protect: { label: "Protect", verb: "", past: "", key: "P", icon: "shield" },
   };
 
@@ -198,6 +198,9 @@
     download: "M12 4v11M7 10l5 5 5-5M5 20h14",
     check: "M5 12.5 10 17l9-10",
     eraser: "M8 20h12M5 15l8-8 5 5-6 6H8z",
+    sun: "M12 3v1.5M12 19.5V21M4.6 4.6l1.1 1.1M18.3 18.3l1.1 1.1M3 12h1.5M19.5 12H21M4.6 19.4l1.1-1.1M18.3 5.7l1.1-1.1M8 12a4 4 0 1 0 8 0 4 4 0 1 0-8 0",
+    moon: "M20 14.2A8 8 0 0 1 9.8 4 8 8 0 1 0 20 14.2z",
+    play: "M7 4.5v15a1 1 0 0 0 1.5.9l12-7.5a1 1 0 0 0 0-1.8l-12-7.5A1 1 0 0 0 7 4.5z",
   };
 
   function icon(name, size = 16) {
@@ -214,6 +217,10 @@
     svg.setAttribute("aria-hidden", "true");
     const path = document.createElementNS(ns, "path");
     path.setAttribute("d", ICONS[name] || "");
+    if (name === "play") {
+      path.setAttribute("fill", "currentColor");
+      path.setAttribute("stroke", "none");
+    }
     svg.append(path);
     return svg;
   }
@@ -936,6 +943,7 @@
       --line: #ededed; --line2: #d6d6d6;
       --fg: #0a0a0a; --fg2: #4f4f4f; --fg3: #8a8a8a; --fg4: #bcbcbc;
       --red: #d70015; --red-bg: rgba(215, 0, 21, .07);
+      --green: #1fa04b; --amber: #d98300;
       --veil: rgba(255, 255, 255, .74);
       --shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 28px 70px -18px rgba(0, 0, 0, .28);
       color-scheme: light;
@@ -949,6 +957,7 @@
       --line: #1a1a1a; --line2: #2c2c2c;
       --fg: #f4f4f4; --fg2: #a6a6a6; --fg3: #6c6c6c; --fg4: #414141;
       --red: #ff453a; --red-bg: rgba(255, 69, 58, .12);
+      --green: #30d158; --amber: #ffb340;
       --veil: rgba(0, 0, 0, .7);
       --shadow: 0 0 0 1px rgba(255, 255, 255, .03), 0 40px 90px -24px rgba(0, 0, 0, .95);
       color-scheme: dark;
@@ -985,11 +994,13 @@
     .launcher:active { transform: scale(.97); }
     .launcher .word { font: 600 10.5px/1 var(--sans); letter-spacing: .34em; margin-right: -.34em; }
     .launcher .info { font: 11px/1 var(--mono); color: #9a9a9a; font-variant-numeric: tabular-nums; }
-    .launcher .dot { width: 6px; height: 6px; border-radius: 50%; background: #f4f4f4; }
+    .launcher .dot { width: 6px; height: 6px; border-radius: 50%; background: #6c6c6c; transition: background-color .3s; }
+    .launcher .dot.go, .launcher .dot.ok { background: #30d158; }
+    .launcher .dot.wait { background: #ffb340; }
     .launcher .dot.live { animation: pulse 1.6s var(--ease) infinite; }
 
     /* Frame */
-    .panel { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); outline: none; animation: rise .3s var(--ease) both; }
+    .panel { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); color: var(--fg); outline: none; animation: rise .3s var(--ease) both; transition: background-color .35s var(--ease), color .35s var(--ease); }
     .panel.leaving { animation: sink .16s var(--ease-in) both; pointer-events: none; }
     .top { display: flex; align-items: stretch; gap: 18px; height: 56px; padding: 0 20px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
     .brand { display: flex; align-items: center; gap: 12px; user-select: none; }
@@ -1021,7 +1032,22 @@
     .btn:disabled { opacity: .32; cursor: default; }
     .btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 600; }
     .btn.primary:hover:not(:disabled) { background: var(--fg); border-color: var(--fg); opacity: .86; }
-    .btn.primary .count { opacity: .6; font-weight: 500; font-variant-numeric: tabular-nums; }
+    .btn.run { height: 32px; padding: 0 15px 0 13px; border-radius: 999px; gap: 8px; }
+    .btn.run.has-count { padding-right: 5px; }
+    .btn.run svg { transition: transform .28s var(--ease); }
+    .btn.run:hover:not(:disabled) svg { transform: translateX(2px); }
+    .btn.run .count {
+      display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px;
+      background: var(--bg); color: var(--fg); font: 600 11px/1 var(--mono); font-variant-numeric: tabular-nums;
+    }
+    .btn.run .count.bump { animation: bump .4s var(--ease); }
+    @keyframes bump { 40% { transform: scale(1.22); } }
+    .btn.icon.theme svg { animation: turn .5s var(--ease) both; }
+    @keyframes turn { from { opacity: 0; transform: rotate(-90deg) scale(.6); } }
+    .seg { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line2); border-radius: 9px; }
+    .seg button { height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; cursor: pointer; font: 12px/1 var(--mono); color: var(--fg2); transition: background-color .2s var(--ease), color .2s; }
+    .seg button:hover { color: var(--fg); }
+    .seg button.on { background: var(--fg); color: var(--bg); }
     .btn.icon { width: 30px; padding: 0; justify-content: center; color: var(--fg2); border-color: transparent; }
     .btn.icon:hover:not(:disabled) { color: var(--fg); background: var(--bg2); border-color: transparent; }
     .btn.ghost { border-color: transparent; color: var(--fg2); }
@@ -1185,7 +1211,7 @@
     .bar { height: 2px; margin: 18px 0 20px; border-radius: 2px; background: var(--line2); overflow: hidden; }
     .bar i { display: block; height: 100%; width: 0; background: var(--fg); transition: width .7s var(--ease); }
     .now { display: flex; gap: 12px; font: 13px/1.5 var(--mono); color: var(--fg); min-width: 0; }
-    .now .v { flex-shrink: 0; min-width: 11ch; color: var(--fg3); }
+    .now .v { flex-shrink: 0; min-width: 15ch; color: var(--fg3); }
     .now .ttl { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
     .card .sub { margin-top: 6px; min-height: 18px; font: 12px/1.5 var(--mono); color: var(--fg3); font-variant-numeric: tabular-nums; }
     .card .big { margin: 2px 0 6px; font: 300 46px/1.1 var(--mono); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
@@ -1204,8 +1230,11 @@
     /* Status bar */
     .foot { display: flex; align-items: center; gap: 18px; height: 36px; padding: 0 20px; border-top: 1px solid var(--line); font: 11.5px/1 var(--mono); color: var(--fg3); flex-shrink: 0; }
     .foot .state { display: flex; align-items: center; gap: 8px; color: var(--fg); white-space: nowrap; font-variant-numeric: tabular-nums; }
-    .foot .state .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fg4); transition: background-color .2s; }
-    .foot .state.busy .dot { background: var(--fg); animation: pulse 1.4s var(--ease) infinite; }
+    .foot .state .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg4); transition: background-color .3s, box-shadow .3s; }
+    .foot .state.ready .dot { background: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 20%, transparent); }
+    .foot .state.busy .dot { background: var(--green); animation: pulse 1.2s var(--ease) infinite; }
+    .foot .state.wait .dot { background: var(--amber); animation: pulse 1.2s var(--ease) infinite; }
+    .foot .state.hold .dot { background: var(--amber); }
     .foot .state.bad { color: var(--red); } .foot .state.bad .dot { background: var(--red); }
     .foot .status { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .foot .links { margin-left: auto; display: flex; gap: 2px; }
@@ -1317,6 +1346,8 @@
     runSig: "",
     runEls: null,
     logSeen: 0,
+    lastQueueTotal: null,
+    themeOverride: null,
     previewTimer: null,
     closeTimer: null,
     toastEl: null,
@@ -1370,13 +1401,46 @@
     if (window.matchMedia) window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ui.syncTheme);
   };
 
+  const THEME_KEY = `${APP}:theme`;
+  function themePref() {
+    try {
+      return localStorage.getItem(THEME_KEY) || "auto";
+    } catch {
+      return "auto";
+    }
+  }
+  function setThemePref(value) {
+    try {
+      if (value === "auto") localStorage.removeItem(THEME_KEY);
+      else localStorage.setItem(THEME_KEY, value);
+    } catch {
+      /* storage blocked: the choice lasts until reload */
+    }
+    ui.themeOverride = value;
+    ui.syncTheme();
+  }
+  function toggleTheme() {
+    setThemePref(ui.root.classList.contains("dark") ? "light" : "dark");
+  }
+
+  // Follows ChatGPT's theme unless you picked light or dark yourself.
   ui.syncTheme = function syncTheme() {
+    const pref = ui.themeOverride || themePref();
     const de = document.documentElement;
     let dark;
-    if (de.classList.contains("dark")) dark = true;
+    if (pref === "dark") dark = true;
+    else if (pref === "light") dark = false;
+    else if (de.classList.contains("dark")) dark = true;
     else if (de.classList.contains("light")) dark = false;
     else dark = Boolean(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    const changed = ui.root.classList.contains("dark") !== dark || !ui.el.themeBtn || !ui.el.themeBtn.firstChild;
     ui.root.classList.toggle("dark", dark);
+    if (changed && ui.el.themeBtn) {
+      const label = dark ? "Switch to light mode" : "Switch to dark mode";
+      ui.el.themeBtn.title = label;
+      ui.el.themeBtn.setAttribute("aria-label", label);
+      ui.el.themeBtn.replaceChildren(icon(dark ? "sun" : "moon", 16));
+    }
   };
 
   function iconBtn(name, title, onclick) {
@@ -1390,7 +1454,8 @@
     el.tabs = h("div", { class: "tabs" }, el.tabBtns, el.tabInd);
     el.queue = h("div", { class: "queue", "aria-live": "polite" });
     el.refresh = iconBtn("refresh", "Reload the chat list", () => reloadLists());
-    el.runBtn = h("button", { class: "btn primary", type: "button", onclick: () => confirmRun() }, "run queue");
+    el.runBtn = h("button", { class: "btn primary run", type: "button", title: "Review the queue, then run it", onclick: () => confirmRun() });
+    el.themeBtn = h("button", { class: "btn icon theme", type: "button", onclick: () => toggleTheme() });
     const top = h("div", { class: "top" },
       h("div", { class: "brand", title: `Triage ${VERSION}` }, h("span", { class: "word" }, "TRIAGE"), h("span", { class: "caret", "aria-hidden": "true" }), h("span", { class: "ver" }, `v${VERSION}`)),
       el.tabs,
@@ -1398,6 +1463,7 @@
       el.queue,
       h("div", { class: "actions" },
         el.refresh,
+        el.themeBtn,
         iconBtn("sliders", "Settings", () => openSettings()),
         iconBtn("help", "Help and shortcuts (?)", () => openHelp()),
         el.runBtn,
@@ -1406,25 +1472,25 @@
     el.banners = h("div", { class: "banners" });
 
     el.search = h("input", {
-      class: "search", type: "search", placeholder: "/  search titles and opened chats",
+      class: "search", type: "search", placeholder: "Search titles and opened chats",
       title: "Searches every title, plus the text of chats you've opened in Triage", "aria-label": "Search",
       oninput: (e) => {
         ui.filters.q = e.target.value;
         ui.renderList();
       },
     });
-    el.age = select([[0, "any age"], [7 * DAY, "older than 1 week"], [30 * DAY, "older than 1 month"], [90 * DAY, "older than 3 months"], [180 * DAY, "older than 6 months"], [365 * DAY, "older than 1 year"]], 0, (v) => {
+    el.age = select([[0, "Any age"], [7 * DAY, "Older than 1 week"], [30 * DAY, "Older than 1 month"], [90 * DAY, "Older than 3 months"], [180 * DAY, "Older than 6 months"], [365 * DAY, "Older than 1 year"]], 0, (v) => {
       ui.filters.age = Number(v);
       ui.renderList();
     }, "Age");
-    el.sort = select([["oldest", "oldest first"], ["newest", "newest first"], ["updated", "recently used"]], "oldest", (v) => {
+    el.sort = select([["oldest", "Oldest first"], ["newest", "Newest first"], ["updated", "Recently used"]], "oldest", (v) => {
       ui.filters.sort = v;
       ui.renderList();
     }, "Sort");
     el.chips = h("div", { class: "chips" },
-      chip("unread", "unread", "Only chats you haven't opened in Triage"),
-      chip("untitled", "untitled", "Only chats called “New chat” or with no title"),
-      chip("marked", "marked", "Only chats with a queued change"));
+      chip("unread", "Unread", "Only chats you haven't opened in Triage"),
+      chip("untitled", "Untitled", "Only chats called “New chat” or with no title"),
+      chip("marked", "Marked", "Only chats with a queued change"));
     const tools = h("div", { class: "tools" }, el.search, el.age, el.sort, el.chips);
 
     el.listhead = h("div", { class: "listhead" });
@@ -1438,11 +1504,11 @@
 
     el.state = h("div", { class: "state" });
     el.status = h("div", { class: "status" });
-    el.activityBtn = h("button", { class: "btn", type: "button", onclick: () => toggleDrawer("activity") }, "activity");
-    el.networkBtn = h("button", { class: "btn", type: "button", title: "Every request Triage has sent", onclick: () => toggleDrawer("network") }, "network");
+    el.activityBtn = h("button", { class: "btn", type: "button", onclick: () => toggleDrawer("activity") }, "Activity");
+    el.networkBtn = h("button", { class: "btn", type: "button", title: "Every request Triage has sent", onclick: () => toggleDrawer("network") }, "Network");
     el.drawerEl = h("div", { class: "drawer", hidden: true });
     const foot = h("div", { class: "foot" }, el.state, el.status,
-      h("div", { class: "links" }, el.activityBtn, el.networkBtn, h("a", { class: "btn", href: HOMEPAGE, target: "_blank", rel: "noopener noreferrer" }, "github ↗")));
+      h("div", { class: "links" }, el.activityBtn, el.networkBtn, h("a", { class: "btn", href: HOMEPAGE, target: "_blank", rel: "noopener noreferrer" }, "GitHub ↗")));
 
     ui.panel = h("div", { class: "panel", hidden: true, tabindex: "-1", role: "dialog", "aria-label": "Triage" }, top, el.banners, el.main, el.drawerEl, foot);
     return ui.panel;
@@ -1602,6 +1668,8 @@
     return { main, projects, archived: Data.archivedLoaded ? Data.archived.length : null, all: Data.active.length };
   }
 
+  const TAB_LABEL = { main: "Main", projects: "Projects", archived: "Archived", all: "All" };
+
   ui.renderTabs = function renderTabs() {
     const n = counts();
     const tabs = [
@@ -1614,7 +1682,7 @@
       class: `tab${ui.filters.scope === key ? " on" : ""}`, type: "button", role: "tab", title,
       "aria-selected": String(ui.filters.scope === key),
       onclick: () => setScope(key),
-    }, h("span", null, key), h("span", { class: "n" }, count == null ? "·" : String(count)))));
+    }, h("span", null, TAB_LABEL[key]), h("span", { class: "n" }, count == null ? "·" : String(count)))));
     requestAnimationFrame(placeTabIndicator);
   };
 
@@ -1647,13 +1715,21 @@
     const q = queueCounts();
     const parts = [];
     for (const a of ["delete", "archive", "unarchive", "rename"]) {
-      if (q[a]) parts.push(h("span", { class: `q-${a}` }, h("b", null, String(q[a])), ` ${ACTION[a].label.toLowerCase()}`));
+      if (q[a]) parts.push(h("span", { class: `q-${a}` }, `${ACTION[a].label} `, h("b", null, String(q[a]))));
     }
-    ui.el.queue.replaceChildren(...(parts.length ? parts : [h("span", null, "queue empty")]));
-    ui.el.runBtn.replaceChildren(...["run queue", q.total ? h("span", { class: "count" }, String(q.total)) : null].filter(Boolean));
+    ui.el.queue.replaceChildren(...(parts.length ? parts : [h("span", null, "Queue Empty")]));
+    renderRunButton(q.total);
     ui.el.runBtn.disabled = !q.total || Runner.isActive() || Boolean(Store.data.run) || ui.lockedElsewhere || !Data.compatOk || Boolean(Data.loading);
     ui.el.refresh.disabled = Runner.isActive() || Boolean(Data.loading);
   };
+
+  function renderRunButton(total) {
+    const btn = ui.el.runBtn;
+    const bump = ui.lastQueueTotal !== null && total !== ui.lastQueueTotal && total > 0;
+    ui.lastQueueTotal = total;
+    btn.classList.toggle("has-count", total > 0);
+    btn.replaceChildren(...[icon("play", 11), h("span", null, "Run Queue"), total ? h("span", { class: `count${bump ? " bump" : ""}` }, String(total)) : null].filter(Boolean));
+  }
 
   ui.renderBanners = function renderBanners() {
     const out = [];
@@ -1709,7 +1785,7 @@
     if (ui.fatal) {
       ui.order = [];
       el.listhead.replaceChildren();
-      el.rows.replaceChildren(h("div", { class: "note" }, h("div", null, ui.fatal), h("button", { class: "btn", type: "button", onclick: () => retryBoot() }, "try again")));
+      el.rows.replaceChildren(h("div", { class: "note" }, h("div", null, ui.fatal), h("button", { class: "btn", type: "button", onclick: () => retryBoot() }, "Try Again")));
       placeCursor(false);
       return;
     }
@@ -1722,7 +1798,7 @@
       el.listhead.replaceChildren();
       const text = L.message || (L.waiting
         ? `ChatGPT asked Triage to slow down. Carrying on at ${fmtClock(Store.data.cooldownUntil)}.`
-        : `loading chats  ${L.n}${L.total ? ` / ~${L.total}` : ""}`);
+        : `Loading chats  ${L.n}${L.total ? ` / ~${L.total}` : ""}`);
       el.rows.replaceChildren(h("div", { class: "note" }, spinner(), text));
       placeCursor(false);
       return;
@@ -1732,7 +1808,7 @@
     if (!rows.length) {
       const filtered = ui.filters.q || ui.filters.age || ui.filters.unread || ui.filters.untitled || ui.filters.marked;
       el.rows.replaceChildren(h("div", { class: "note" }, h("div", null, filtered ? "No chats match these filters." : "No chats here."),
-        filtered ? h("button", { class: "btn", type: "button", onclick: clearFilters }, "clear filters") : null));
+        filtered ? h("button", { class: "btn", type: "button", onclick: clearFilters }, "Clear Filters") : null));
       placeCursor(false);
       return;
     }
@@ -1743,7 +1819,7 @@
       frag.append(row);
     }
     if (loadingHere) {
-      frag.append(h("div", { class: "note" }, spinner(), L.waiting ? "waiting for ChatGPT" : `loading  ${L.n}${L.total ? ` / ~${L.total}` : ""}`));
+      frag.append(h("div", { class: "note" }, spinner(), L.waiting ? "Waiting for ChatGPT" : `Loading  ${L.n}${L.total ? ` / ~${L.total}` : ""}`));
     }
     el.rows.replaceChildren(frag);
     if (ui.focusId && !ui.rowEls.has(ui.focusId)) ui.focusId = null;
@@ -1763,25 +1839,25 @@
       else for (const c of pickable) ui.sel.delete(c.id);
       ui.renderList();
     });
-    const parts = [all, h("span", null, plural(rows.length, "chat"))];
+    const parts = [all, h("span", null, `${rows.length} ${rows.length === 1 ? "Chat" : "Chats"}`)];
     if (ui.sel.size) {
       const archivedScope = ui.filters.scope === "archived";
-      parts.push(h("b", null, `${ui.sel.size} selected`), h("span", { class: "grow" }),
+      parts.push(h("b", null, `${ui.sel.size} Selected`), h("span", { class: "grow" }),
         bulkBtn("delete"),
         archivedScope ? bulkBtn("unarchive") : bulkBtn("archive"),
-        h("button", { class: "btn small", type: "button", title: "Protect the selected chats (P)", onclick: () => applyAction("protect", selectedChats()) }, "protect"),
-        h("button", { class: "btn small", type: "button", title: "Remove queued changes from the selected chats (C)", onclick: () => applyAction("clear", selectedChats()) }, "clear"),
-        h("button", { class: "btn small ghost", type: "button", title: "Select the shown chats that aren't selected", onclick: invertSelection }, "invert"),
-        h("button", { class: "btn small ghost", type: "button", onclick: () => { ui.sel.clear(); ui.renderList(); } }, "none"));
+        h("button", { class: "btn small", type: "button", title: "Protect the selected chats (P)", onclick: () => applyAction("protect", selectedChats()) }, "Protect"),
+        h("button", { class: "btn small", type: "button", title: "Remove queued changes from the selected chats (C)", onclick: () => applyAction("clear", selectedChats()) }, "Clear"),
+        h("button", { class: "btn small ghost", type: "button", title: "Select the shown chats that aren't selected", onclick: invertSelection }, "Invert"),
+        h("button", { class: "btn small ghost", type: "button", onclick: () => { ui.sel.clear(); ui.renderList(); } }, "Deselect"));
     } else {
-      parts.push(h("span", { class: "grow" }), h("span", null, "click to read · shift-click for a range · ? for keys"));
+      parts.push(h("span", { class: "grow" }), h("span", null, "Click to read · Shift-click for a range · ? for keys"));
     }
     ui.el.listhead.replaceChildren(...parts);
   }
 
   function bulkBtn(action) {
     const a = ACTION[action];
-    return h("button", { class: `btn small t-${action}${action === "delete" ? " danger" : ""}`, type: "button", title: `${a.label} the selected chats (${a.key})`, onclick: () => applyAction(action, selectedChats()) }, a.label.toLowerCase());
+    return h("button", { class: `btn small t-${action}${action === "delete" ? " danger" : ""}`, type: "button", title: `${a.label} the selected chats (${a.key})`, onclick: () => applyAction(action, selectedChats()) }, a.label);
   }
 
   function rowEl(c) {
@@ -1796,14 +1872,14 @@
     if (mark) cls.push(`m-${mark.a}`);
     if (fresh) cls.push("fresh");
     const badges = [];
-    if (c.pinned) badges.push(h("span", { class: "badge", title: "Pinned" }, "pinned"));
-    if (c.projectId && ui.filters.scope !== "projects") badges.push(h("span", { class: "badge", title: "In a project" }, "project"));
-    if (c.gptId) badges.push(h("span", { class: "badge", title: "Chat with a custom GPT" }, "gpt"));
+    if (c.pinned) badges.push(h("span", { class: "badge", title: "Pinned" }, "Pinned"));
+    if (c.projectId && ui.filters.scope !== "projects") badges.push(h("span", { class: "badge", title: "In a project" }, "Project"));
+    if (c.gptId) badges.push(h("span", { class: "badge", title: "Chat with a custom GPT" }, "GPT"));
     const cb = h("input", { type: "checkbox", class: "cb", tabindex: "-1", "aria-label": "Select", disabled: prot });
     cb.checked = ui.sel.has(c.id);
     let tag = null;
-    if (prot) tag = h("span", { class: `tag prot${fresh ? " fresh" : ""}`, title: "Protected: Triage won't change this chat" }, "protected");
-    else if (mark && mark.a === "rename") tag = h("span", { class: `tag rename${fresh ? " fresh" : ""}`, title: `Rename to ${quote(mark.t)}` }, "rename → ", h("span", { class: "v" }, mark.t));
+    if (prot) tag = h("span", { class: `tag prot${fresh ? " fresh" : ""}`, title: "Protected: Triage won't change this chat" }, "Protected");
+    else if (mark && mark.a === "rename") tag = h("span", { class: `tag rename${fresh ? " fresh" : ""}`, title: `Rename to ${quote(mark.t)}` }, "Rename → ", h("span", { class: "v" }, mark.t));
     else if (mark) tag = h("span", { class: `tag ${mark.a}${fresh ? " fresh" : ""}` }, ACTION[mark.a].label);
     const acts = h("span", { class: "acts" },
       miniBtn(c.archived ? "unarchive" : "archive", Boolean(mark && mark.a === (c.archived ? "unarchive" : "archive"))),
@@ -1846,10 +1922,10 @@
     return h("div", { class: "idle" }, h("div", { class: "legend" },
       h("div", { class: "h" }, any ? "Pick a chat to read it here" : "Your chats will show up here"),
       h("div", { class: "grid" },
-        pair("↑ ↓", "move"), pair("d", "delete"),
-        pair("⏎", "read"), pair("a", "archive"),
-        pair("space", "select"), pair("r", "rename"),
-        pair("/", "search"), pair("p", "protect")),
+        pair("↑ ↓", "Move"), pair("D", "Delete"),
+        pair("⏎", "Read"), pair("A", "Archive"),
+        pair("Space", "Select"), pair("R", "Rename"),
+        pair("/", "Search"), pair("P", "Protect")),
       h("div", { class: "f" }, "Nothing changes in ChatGPT until you run the queue.")));
   }
 
@@ -1868,30 +1944,30 @@
     const prot = Boolean(d.protect[c.id]);
     const conv = cache.get(c.id);
     const meta = [
-      isoDate(c.created),
-      c.updated ? `last used ${isoDate(c.updated)}` : null,
-      conv ? plural(conv.messages.length, "message") : null,
-      c.projectId ? "project" : null,
-      c.gptId ? "custom gpt" : null,
-      c.pinned ? "pinned" : null,
-      c.archived ? "archived" : null,
+      `Created ${isoDate(c.created)}`,
+      c.updated ? `Last Used ${isoDate(c.updated)}` : null,
+      conv ? `${conv.messages.length} ${conv.messages.length === 1 ? "Message" : "Messages"}` : null,
+      c.projectId ? "Project" : null,
+      c.gptId ? "Custom GPT" : null,
+      c.pinned ? "Pinned" : null,
+      c.archived ? "Archived" : null,
     ].filter(Boolean);
 
     let state = null;
-    if (prot) state = h("div", { class: "rstate" }, "protected · Triage won't change this chat");
-    else if (mark && mark.a === "rename") state = h("div", { class: "rstate" }, "queued · rename → ", h("span", { class: "v" }, mark.t));
-    else if (mark) state = h("div", { class: `rstate ${mark.a}` }, `queued · ${ACTION[mark.a].label}${mark.a === "delete" ? " · can't be undone" : ""}`);
+    if (prot) state = h("div", { class: "rstate" }, "Protected · Triage won't change this chat");
+    else if (mark && mark.a === "rename") state = h("div", { class: "rstate" }, "Queued · Rename → ", h("span", { class: "v" }, mark.t));
+    else if (mark) state = h("div", { class: `rstate ${mark.a}` }, `Queued · ${ACTION[mark.a].label}${mark.a === "delete" ? " · Can't be undone" : ""}`);
 
     const actionBtn = (action) => {
       const a = ACTION[action];
       const on = action === "protect" ? prot : Boolean(mark && mark.a === action);
-      const label = action === "protect" ? (prot ? "unprotect" : "protect") : on ? `unmark ${a.label.toLowerCase()}` : a.label.toLowerCase();
+      const label = action === "protect" ? (prot ? "Unprotect" : "Protect") : on ? `Unmark ${a.label}` : a.label;
       return h("button", { class: `btn${on ? " on" : ""}${action === "delete" ? " danger" : ""}`, type: "button", title: `${label} (${a.key})`, onclick: () => applyAction(action, [c]) },
-        h("span", { class: "k" }, a.key.toLowerCase()), label);
+        h("span", { class: "k" }, a.key), label);
     };
     const open = TEST.demo
-      ? h("button", { class: "btn ghost", type: "button", onclick: () => ui.toast("In the demo, chats don't open in ChatGPT.") }, "open in chatgpt ↗")
-      : h("a", { class: "btn ghost", href: `/c/${encodeURIComponent(c.id)}`, target: "_blank", rel: "noopener noreferrer" }, "open in chatgpt ↗");
+      ? h("button", { class: "btn ghost", type: "button", onclick: () => ui.toast("In the demo, chats don't open in ChatGPT.") }, "Open in ChatGPT ↗")
+      : h("a", { class: "btn ghost", href: `/c/${encodeURIComponent(c.id)}`, target: "_blank", rel: "noopener noreferrer" }, "Open in ChatGPT ↗");
     const switched = ui.readerHead !== c.id;
     ui.readerHead = c.id;
     const head = h("div", { class: `rhead${switched ? " fresh" : ""}` },
@@ -1928,9 +2004,9 @@
           ? `ChatGPT asked Triage to slow down. You can read chats again at ${fmtClock(Store.data.cooldownUntil)}.`
           : e.kind === "notfound" ? "This chat doesn't exist in ChatGPT any more." : `Couldn't load this chat. ${e.message || ""}`;
         body = h("div", { class: "msgs" }, h("div", { class: "note" }, h("div", null, text),
-          e.kind === "notfound" ? null : h("button", { class: "btn", type: "button", onclick: () => openReader(c.id, true) }, "try again")));
+          e.kind === "notfound" ? null : h("button", { class: "btn", type: "button", onclick: () => openReader(c.id, true) }, "Try Again")));
       } else {
-        body = h("div", { class: "msgs" }, h("div", { class: "note" }, spinner(), "loading chat"));
+        body = h("div", { class: "msgs" }, h("div", { class: "note" }, spinner(), "Loading chat"));
       }
       ui.readerBody = bodyKey;
     }
@@ -1941,23 +2017,26 @@
     const el = ui.el.state;
     if (!el) return;
     const r = ui.booted ? Store.data.run : null;
-    let cls = "";
-    let text = "ready";
+    const waiting = () => `Waiting ${clock(Api.cooldownLeft())}`;
+    let cls = "ready";
+    let text = "Ready";
     if (ui.fatal) {
       cls = "bad";
-      text = "error";
+      text = "Error";
     } else if (Data.loading) {
-      cls = "busy";
-      text = Data.loading.waiting ? `waiting ${clock(Api.cooldownLeft())}` : `loading ${Data.loading.n}${Data.loading.total ? `/${Data.loading.total}` : ""}`;
+      cls = Data.loading.waiting ? "wait" : "busy";
+      text = Data.loading.waiting ? waiting() : `Loading ${Data.loading.n}${Data.loading.total ? `/${Data.loading.total}` : ""}`;
     } else if (r && ACTIVE.includes(r.status)) {
-      cls = "busy";
-      text = { waiting: `waiting ${clock(Api.cooldownLeft())}`, backup: "backing up", verifying: "checking" }[r.status] || `running ${r.i}/${r.jobs.length}`;
+      cls = r.status === "waiting" ? "wait" : "busy";
+      text = { waiting: waiting(), backup: "Backing Up", verifying: "Checking" }[r.status] || `Running ${r.i}/${r.jobs.length}`;
     } else if (r && r.status === "paused") {
-      text = "paused";
+      cls = "hold";
+      text = "Paused";
     } else if (Api.cooldownLeft() > 0) {
-      text = `waiting ${clock(Api.cooldownLeft())}`;
+      cls = "wait";
+      text = waiting();
     }
-    el.className = `state${cls ? ` ${cls}` : ""}`;
+    el.className = `state ${cls}`;
     el.replaceChildren(h("span", { class: "dot" }), text);
   }
 
@@ -1967,10 +2046,10 @@
     const d = Store.data;
     const bits = [];
     if (Data.active.length || Data.archived.length) {
-      bits.push(`${ui.order.length} shown`);
-      bits.push(`${Object.keys(d.seen).filter((id) => Data.byId.has(id)).length} read`);
+      bits.push(`${ui.order.length} Shown`);
+      bits.push(`${Object.keys(d.seen).filter((id) => Data.byId.has(id)).length} Read`);
       const prot = Object.keys(d.protect).length;
-      if (prot) bits.push(`${prot} protected`);
+      if (prot) bits.push(`${prot} Protected`);
     }
     const last = activity[activity.length - 1];
     if (last) bits.push(last.message);
@@ -1981,16 +2060,18 @@
     if (!ui.launcher) return;
     const r = ui.booted ? Store.data.run : null;
     let info = null;
-    let live = false;
+    let dot = "";
     if (r && ACTIVE.includes(r.status)) {
-      live = true;
-      info = r.status === "waiting" ? `wait ${clock(Api.cooldownLeft())}` : `${r.i}/${r.jobs.length}`;
+      dot = r.status === "waiting" ? "wait live" : "go live";
+      info = r.status === "waiting" ? `Wait ${clock(Api.cooldownLeft())}` : `${r.i}/${r.jobs.length}`;
     } else if (r && r.status === "paused") {
-      info = "paused";
+      dot = "wait";
+      info = "Paused";
     } else if (r) {
-      info = "done";
+      dot = "ok";
+      info = "Done";
     }
-    ui.launcher.replaceChildren(...[h("span", { class: `dot${live ? " live" : ""}` }), h("span", { class: "word" }, "TRIAGE"), info ? h("span", { class: "info" }, info) : null].filter(Boolean));
+    ui.launcher.replaceChildren(...[h("span", { class: `dot ${dot}` }), h("span", { class: "word" }, "TRIAGE"), info ? h("span", { class: "info" }, info) : null].filter(Boolean));
   };
 
   ui.renderDrawer = function renderDrawer() {
@@ -2044,7 +2125,7 @@
           h("div", { class: "head" }, h("div", { class: "state" }, "BUSY")),
           h("div", { class: "bar" }, h("i")),
           h("div", { class: "explain" }, "Triage is working through a queue in another ChatGPT tab. Only one tab can run the queue at a time."),
-          h("div", { class: "btns" }, h("button", { class: "btn", type: "button", onclick: recheckOtherTab }, "check again"))));
+          h("div", { class: "btns" }, h("button", { class: "btn", type: "button", onclick: recheckOtherTab }, "Check Again"))));
       }
       return;
     }
@@ -2083,15 +2164,15 @@
     if (r.status === "waiting") {
       big = h("div", { class: "big" }, clock(Api.cooldownLeft()));
       parts.push(big, h("div", { class: "explain" }, `ChatGPT asked Triage to slow down. It carries on by itself at ${fmtClock(Store.data.cooldownUntil)}.`));
-      if (job) parts.push(h("div", { style: "height:14px" }), nowLine(`next ${job.action}`, job.title || "Untitled", job.action === "rename" ? ` → ${job.newTitle}` : null));
+      if (job) parts.push(h("div", { style: "height:14px" }), nowLine(`Next: ${ACTION[job.action].label}`, job.title || "Untitled", job.action === "rename" ? ` → ${job.newTitle}` : null));
     } else if (r.status === "backup") {
-      parts.push(nowLine("reading", (job && job.title) || "…"), sub);
+      parts.push(nowLine("Reading", (job && job.title) || "…"), sub);
       sub.textContent = r.note;
     } else if (r.status === "running" && job) {
       const a = ACTION[job.action];
-      parts.push(nowLine(r.nextAt ? `next ${job.action}` : a.verb, job.title || "Untitled", job.action === "rename" ? ` → ${job.newTitle}` : null), sub);
+      parts.push(nowLine(r.nextAt ? `Next: ${a.label}` : a.verb, job.title || "Untitled", job.action === "rename" ? ` → ${job.newTitle}` : null), sub);
     } else if (r.status === "verifying") {
-      parts.push(nowLine("checking", "your chat list"), sub);
+      parts.push(nowLine("Checking", "Your chat list"), sub);
       sub.textContent = r.note;
     } else if (r.status === "paused") {
       parts.push(h("div", { class: "explain" }, r.note || "Nothing else changes until you resume."));
@@ -2114,7 +2195,7 @@
         const bad = x.status !== "done";
         return h("div", { class: `${bad ? "bad" : ""}${isNew ? " new" : ""}` },
           h("span", { class: "g" }, glyph[x.status] || "·"),
-          h("span", { class: "v" }, x.note === "It was already gone." ? "gone" : ACTION[x.action].past),
+          h("span", { class: "v" }, x.note === "It was already gone." ? "Gone" : ACTION[x.action].past),
           h("span", { class: "ttl" }, x.title || "Untitled", x.action === "rename" && x.newTitle ? ` → ${x.newTitle}` : ""),
           bad && x.note ? h("span", { class: "why" }, x.note) : null);
       }));
@@ -2124,15 +2205,15 @@
 
     const btns = [];
     if (live) {
-      btns.push(h("button", { class: "btn", type: "button", onclick: () => Runner.pause() }, "pause"));
-      btns.push(h("button", { class: "btn ghost", type: "button", onclick: () => Runner.stop() }, "stop"));
+      btns.push(h("button", { class: "btn", type: "button", onclick: () => Runner.pause() }, "Pause"));
+      btns.push(h("button", { class: "btn ghost", type: "button", onclick: () => Runner.stop() }, "Stop"));
     } else if (r.status === "paused") {
-      btns.push(h("button", { class: "btn primary", type: "button", disabled: ui.lockedElsewhere, onclick: () => Runner.resume() }, "resume"));
-      btns.push(h("button", { class: "btn ghost", type: "button", onclick: () => Runner.stop() }, "stop"));
+      btns.push(h("button", { class: "btn primary", type: "button", disabled: ui.lockedElsewhere, onclick: () => Runner.resume() }, "Resume"));
+      btns.push(h("button", { class: "btn ghost", type: "button", onclick: () => Runner.stop() }, "Stop"));
     } else {
-      btns.push(h("button", { class: "btn primary", type: "button", onclick: () => Runner.dismiss() }, "close"));
-      btns.push(h("button", { class: "btn", type: "button", onclick: downloadReport }, "report.csv"));
-      if (Runner.backup.length) btns.push(h("button", { class: "btn", type: "button", onclick: () => download(`chatgpt-triage-backup-${fileStamp()}.json`, JSON.stringify(Runner.backup, null, 2), "application/json") }, "backup.json"));
+      btns.push(h("button", { class: "btn primary", type: "button", onclick: () => Runner.dismiss() }, "Close"));
+      btns.push(h("button", { class: "btn", type: "button", onclick: downloadReport }, "Download Report"));
+      if (Runner.backup.length) btns.push(h("button", { class: "btn", type: "button", onclick: () => download(`chatgpt-triage-backup-${fileStamp()}.json`, JSON.stringify(Runner.backup, null, 2), "application/json") }, "Download Backup"));
     }
     parts.push(h("div", { class: "btns" }, btns));
     if (live) parts.push(h("div", { class: "tip" }, "Keep this tab open. You can close this panel and keep using ChatGPT; the button in the corner shows progress. Other ChatGPT tabs and the desktop app share the same limit, so close them if you can."));
@@ -2147,7 +2228,7 @@
     const els = ui.runEls;
     if (!r || !els) return;
     if (els.big) els.big.textContent = clock(Api.cooldownLeft());
-    if (r.status === "running" && r.nextAt) els.sub.textContent = `in ${Math.max(0, Math.ceil((r.nextAt - now()) / SEC))}s`;
+    if (r.status === "running" && r.nextAt) els.sub.textContent = `In ${Math.max(0, Math.ceil((r.nextAt - now()) / SEC))}s`;
     else if (r.status === "running" && r.note) els.sub.textContent = r.note;
   }
 
@@ -2556,14 +2637,14 @@
     const input = h("input", { type: "text", "aria-label": "New title", maxlength: "200" });
     input.value = mark && mark.a === "rename" ? mark.t : c.title;
     modal("Rename chat", [
-      h("div", { class: "lbl" }, "now"),
+      h("div", { class: "lbl" }, "Now"),
       h("p", null, c.title || "Untitled"),
-      h("div", { class: "lbl" }, "new name"),
+      h("div", { class: "lbl" }, "New Name"),
       input,
       h("p", { class: "hint", style: "margin-top:12px" }, "The new name is queued. ChatGPT only changes when you run the queue."),
     ], [
-      ["cancel"],
-      ["queue rename", "primary", () => {
+      ["Cancel"],
+      ["Queue Rename", "primary", () => {
         const t = input.value.trim();
         if (!t || t === c.title) delete Store.data.marks[c.id];
         else {
@@ -2590,22 +2671,22 @@
     const gap = Store.data.settings.gap;
     const minutes = Math.max(1, Math.round((jobs.length * gap) / 60));
     const rows = ["delete", "archive", "unarchive", "rename"].filter((a) => n[a]).map((a) => h("div", { class: a === "delete" ? "del" : "" },
-      h("span", null, ACTION[a].label.toLowerCase(), a === "delete" ? h("span", { class: "x" }, "permanent · ChatGPT can't restore deleted chats") : null),
+      h("span", null, ACTION[a].label, a === "delete" ? h("span", { class: "x" }, "Permanent · ChatGPT can't restore deleted chats") : null),
       h("span", { class: "n" }, String(n[a]))));
     const backup = h("input", { type: "checkbox" });
     backup.checked = Store.data.settings.backup;
     const typed = h("input", { type: "text", placeholder: String(n.delete), "aria-label": "Type the number of chats to delete" });
     const body = [
       h("div", { class: "table" }, rows),
-      h("div", { class: "eta" }, `${plural(jobs.length, "change")} · one every ${gap}s · about ${minutes} min`),
+      h("div", { class: "eta" }, `Changes: ${jobs.length}  ·  One every ${gap}s  ·  About ${minutes} min`),
       h("p", { class: "hint" }, "If ChatGPT says \"too many requests\", Triage waits as long as it asks and carries on by itself."),
     ];
-    if (n.delete) body.push(check(backup, `back up the ${plural(n.delete, "chat")} being deleted first`, "Saves one Markdown file before anything is deleted."));
-    if (n.delete >= CFG.typeToConfirm) body.push(h("div", { class: "lbl" }, `type ${n.delete} to confirm`), typed);
+    if (n.delete) body.push(check(backup, `Back up the ${plural(n.delete, "chat")} being deleted first`, "Saves one Markdown file before anything is deleted."));
+    if (n.delete >= CFG.typeToConfirm) body.push(h("div", { class: "lbl" }, `Type ${n.delete} to Confirm`), typed);
     body.push(h("p", { class: "hint", style: "margin-top:16px" }, "Close other ChatGPT tabs and the desktop app while this runs. They share the same limit."));
     const box = modal("Run the queue?", body, [
-      ["cancel"],
-      [`run ${jobs.length}`, "primary", () => {
+      ["Cancel"],
+      [`Run ${jobs.length} ${jobs.length === 1 ? "Change" : "Changes"}`, "primary", () => {
         Store.data.settings.backup = backup.checked;
         Store.save();
         Runner.start({ backup: backup.checked });
@@ -2632,21 +2713,23 @@
     pinned.checked = s.pinnedInSelectAll;
     const small = (label, fn) => h("button", { class: "btn small", type: "button", onclick: fn }, label);
     modal("Settings", [
-      h("div", { class: "lbl", style: "margin-top:0" }, "pace"),
-      h("div", { class: "inline" }, h("span", null, "wait"), gap, h("span", null, "seconds between changes")),
+      h("div", { class: "lbl", style: "margin-top:0" }, "Pace"),
+      h("div", { class: "inline" }, h("span", null, "Wait"), gap, h("span", null, "seconds between changes")),
       h("p", { class: "hint", style: "margin-top:10px" }, `Slower is safer. Minimum ${CFG.gapMin}, default ${CFG.gapDefault}. After a "too many requests", Triage also waits however long ChatGPT asks.`),
-      h("div", { class: "lbl" }, "safety"),
-      check(backup, "back up chats before deleting them", "Saves a Markdown file of the chats in the delete queue before anything is deleted."),
-      check(pinned, "include pinned chats in select all", "Off by default, so select all never picks up pinned chats."),
-      h("div", { class: "lbl" }, "data"),
+      h("div", { class: "lbl" }, "Appearance"),
+      themeSeg(),
+      h("div", { class: "lbl" }, "Safety"),
+      check(backup, "Back up chats before deleting them", "Saves a Markdown file of the chats in the delete queue before anything is deleted."),
+      check(pinned, "Include pinned chats in Select All", "Off by default, so select all never picks up pinned chats."),
+      h("div", { class: "lbl" }, "Data"),
       h("div", { class: "stack" },
-        small("download chat list (csv)", exportList),
-        small("clear all marks", () => resetState("marks", "Clear every queued change?")),
-        small("forget what I've read", () => resetState("seen", "Mark every chat as unread again?")),
-        small("unprotect everything", () => resetState("protect", "Remove protection from every chat?"))),
+        small("Download Chat List (CSV)", exportList),
+        small("Clear All Marks", () => resetState("marks", "Clear every queued change?")),
+        small("Forget What I've Read", () => resetState("seen", "Mark every chat as unread again?")),
+        small("Unprotect Everything", () => resetState("protect", "Remove protection from every chat?"))),
     ], [
-      ["cancel"],
-      ["save", "primary", () => {
+      ["Cancel"],
+      ["Save", "primary", () => {
         s.gap = clamp(Math.round(Number(gap.value)) || CFG.gapDefault, CFG.gapMin, CFG.gapMax);
         s.backup = backup.checked;
         s.pinnedInSelectAll = pinned.checked;
@@ -2654,6 +2737,21 @@
         ui.renderAll();
       }],
     ]);
+  }
+
+  function themeSeg() {
+    const current = ui.themeOverride || themePref();
+    const seg = h("div", { class: "seg", role: "group", "aria-label": "Theme" });
+    for (const [value, label] of [["auto", "Match ChatGPT"], ["light", "Light"], ["dark", "Dark"]]) {
+      seg.append(h("button", {
+        class: current === value ? "on" : "", type: "button",
+        onclick: (e) => {
+          setThemePref(value);
+          for (const b of seg.children) b.classList.toggle("on", b === e.currentTarget);
+        },
+      }, label));
+    }
+    return seg;
   }
 
   function resetState(key, question) {
@@ -2668,31 +2766,31 @@
 
   function openHelp() {
     const keys = [
-      [["↑", "↓"], "move; the chat opens on the right"],
-      [["j", "k"], "move, the vim way"],
-      [["shift", "↑↓"], "select while moving"],
-      [["space"], "select or unselect"],
-      [["d"], "queue delete, then next"],
-      [["a"], "queue archive (unarchive in archived)"],
-      [["r"], "queue a new name"],
-      [["p"], "protect: never touched"],
-      [["c"], "clear the queued change"],
-      [["/"], "search"],
-      [["esc"], "clear the selection"],
-      [["alt", "shift", "t"], "open or close Triage"],
+      [["↑", "↓"], "Move; the chat opens on the right"],
+      [["J", "K"], "Move, the Vim way"],
+      [["Shift", "↑↓"], "Select while moving"],
+      [["Space"], "Select or unselect"],
+      [["D"], "Queue delete, then go to the next chat"],
+      [["A"], "Queue archive (unarchive in Archived)"],
+      [["R"], "Queue a new name"],
+      [["P"], "Protect, so it's never touched"],
+      [["C"], "Clear the queued change"],
+      [["/"], "Search"],
+      [["Esc"], "Clear the selection"],
+      [["Alt", "Shift", "T"], "Open or close Triage"],
     ];
     modal("Triage", [
       h("p", null, "Read your chats, mark what should happen to each one, then run the queue. ChatGPT doesn't change until you do, and your marks are saved in this browser."),
-      h("div", { class: "lbl" }, "keys"),
+      h("div", { class: "lbl" }, "Keys"),
       h("div", { class: "keys" }, keys.map(([ks, v]) => [h("span", null, ks.map((k) => h("span", { class: "kbd" }, k))), h("span", null, v)])),
-      h("div", { class: "lbl" }, "the limit"),
+      h("div", { class: "lbl" }, "The Limit"),
       h("p", null, "One change at a time, with a pause between each. If ChatGPT says \"too many requests\", Triage stops every request, waits as long as ChatGPT asks (longer each time if it doesn't say), then carries on with the same chat."),
-      h("div", { class: "lbl" }, "safety"),
+      h("div", { class: "lbl" }, "Safety"),
       h("p", null, "Project and pinned chats stay out of Main and select all. Deletes can be backed up first, and big deletes ask you to type the number. At the end, Triage reloads your list to check the changes stuck."),
-      h("div", { class: "lbl" }, "privacy"),
-      h("p", null, "Triage runs in your browser and only talks to chatgpt.com. The network button shows every request it sends."),
-      h("p", { class: "hint" }, `v${VERSION} · `, h("a", { href: HOMEPAGE, target: "_blank", rel: "noopener noreferrer", style: "text-decoration:underline" }, "source on GitHub"), " · not affiliated with OpenAI"),
-    ], [["close", "primary"]]);
+      h("div", { class: "lbl" }, "Privacy"),
+      h("p", null, "Triage runs in your browser and only talks to chatgpt.com. The Network button shows every request it sends."),
+      h("p", { class: "hint" }, `v${VERSION} · `, h("a", { href: HOMEPAGE, target: "_blank", rel: "noopener noreferrer", style: "text-decoration:underline" }, "Source on GitHub"), " · Not affiliated with OpenAI"),
+    ], [["Close", "primary"]]);
   }
 
   function exportList() {
