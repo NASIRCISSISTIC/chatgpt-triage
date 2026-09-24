@@ -1094,7 +1094,8 @@
     .menu .opt.on svg { visibility: visible; }
     .menu hr { margin: 6px 4px; border: 0; border-top: 1px solid var(--line); }
 
-    .gut { width: 16px; height: 16px; display: grid; place-items: center; flex-shrink: 0; }
+    .gut { position: relative; width: 16px; height: 16px; display: grid; place-items: center; flex-shrink: 0; }
+    .row .gut::after { content: ""; position: absolute; inset: -10px -8px -10px -12px; } /* a 36px-tall target for a 14px checkbox */
     .cb {
       appearance: none; -webkit-appearance: none; margin: 0; width: 14px; height: 14px; flex-shrink: 0; cursor: pointer;
       border: 1.5px solid var(--fg3); border-radius: 4px; background: transparent;
@@ -1311,9 +1312,14 @@
       .col { padding: 0 20px; }
     }
     @media (max-width: 640px) {
-      .top { gap: 14px; padding: 0 12px; }
-      .tabbtns { gap: 14px; }
-      .tab .n { display: none; }
+      /* Phones: the tabs get their own row, so the buttons on the right stay on screen. */
+      .top { height: auto; flex-wrap: wrap; gap: 0 12px; padding: 12px 12px 0; }
+      .tabs { order: 5; flex-basis: 100%; height: 40px; overflow-x: auto; scrollbar-width: none; }
+      .tabbtns { height: 100%; gap: 18px; }
+      .actions .run { margin-left: 0; }
+      /* No keyboard on a phone: drop the shortcut hints so the reader's actions fit. */
+      .reader .b1 .key, .search .key { display: none; }
+      .reader .b1 .lbl { display: none; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
@@ -1326,6 +1332,7 @@
     html.${APP}-reveal::view-transition-old(root), html.${APP}-reveal::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
     html.${APP}-reveal::view-transition-old(root) { z-index: 1; }
     html.${APP}-reveal::view-transition-new(root) { z-index: 2; }
+    html.${APP}-fade::view-transition-old(root), html.${APP}-fade::view-transition-new(root) { animation-duration: .18s; }
   `;
 
   const spinner = () => h("span", { class: "spin", "aria-hidden": "true" });
@@ -1493,35 +1500,37 @@
       paintTheme(dark);
       return;
     }
-    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (!origin || !ui.isOpen || reduce || document.hidden || typeof document.startViewTransition !== "function") {
+    if (!origin || !ui.isOpen || document.hidden || typeof document.startViewTransition !== "function") {
       snapTheme(dark);
       return;
     }
+    // With reduced motion, a short fade instead of the moving circle: nothing travels across the screen.
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const mode = reduce ? `${APP}-fade` : `${APP}-reveal`;
     const box = origin.getBoundingClientRect();
     const x = box.left + box.width / 2;
     const y = box.top + box.height / 2;
     const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
     const de = document.documentElement;
     ui.themeBusy = true;
-    de.classList.add(`${APP}-reveal`);
+    de.classList.add(mode);
     let transition;
     try {
       transition = document.startViewTransition(() => snapTheme(dark));
     } catch {
-      de.classList.remove(`${APP}-reveal`);
+      de.classList.remove(mode);
       ui.themeBusy = false;
       snapTheme(dark);
       return;
     }
-    transition.ready.then(() => {
+    if (!reduce) transition.ready.then(() => {
       de.animate(
         { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
         { duration: 560, easing: "cubic-bezier(.22, 1, .36, 1)", pseudoElement: "::view-transition-new(root)" },
       );
     }).catch(() => {});
     transition.finished.finally(() => {
-      de.classList.remove(`${APP}-reveal`);
+      de.classList.remove(mode);
       ui.themeBusy = false;
     });
   }
@@ -1559,6 +1568,8 @@
     el.tabBtns = h("div", { class: "tabbtns", role: "tablist", "aria-label": "Which chats" });
     el.tabInd = h("span", { class: "tabind instant", "aria-hidden": "true" });
     el.tabs = h("div", { class: "tabs" }, el.tabBtns, el.tabInd);
+    // Keep the underline under the active tab when the layout changes, e.g. into the phone layout.
+    if (typeof ResizeObserver === "function") new ResizeObserver(() => placeTabIndicator()).observe(el.tabs);
     el.queue = h("div", { class: "queue", "aria-live": "polite" });
     el.runBtn = h("button", { class: "run", type: "button", title: "Review the queue, then run it", onclick: () => confirmRun() });
     el.themeBtn = h("button", { class: "btn icon theme", type: "button", onclick: toggleTheme });
@@ -1970,6 +1981,13 @@
     const loadingHere = L && (L.scope === "archived") === (ui.filters.scope === "archived");
     const rows = visibleChats();
     ui.order = rows.map((c) => c.id);
+    // What you see is what you act on: a chat hidden by search, a filter or a tab
+    // leaves the selection, so a bulk action never reaches chats off screen.
+    if (ui.sel.size && !loadingHere) {
+      const shown = new Set(ui.order);
+      for (const id of ui.sel) if (!shown.has(id)) ui.sel.delete(id);
+      el.list.classList.toggle("selecting", ui.sel.size > 0);
+    }
 
     if (loadingHere && !rows.length) {
       put(el.listhead);
@@ -2066,7 +2084,7 @@
       miniBtn("delete", Boolean(mark && mark.a === "delete")),
       miniBtn("rename", Boolean(mark && mark.a === "rename")),
       miniBtn("protect", prot));
-    return h("div", { class: cls.join(" "), "data-id": c.id, role: "option", "aria-selected": String(c.id === ui.focusId) },
+    return h("div", { class: cls.join(" "), id: `r-${c.id}`, "data-id": c.id, role: "option", "aria-selected": String(c.id === ui.focusId) },
       h("span", { class: "gut" }, d.seen[c.id] ? null : h("span", { class: "dot", title: "Not opened yet" }), cb),
       h("span", { class: "date", title: c.created ? new Date(c.created).toLocaleString() : "" }, isoDate(c.created)),
       h("span", { class: "title", title: c.title || "Untitled" }, chips, h("span", { class: "t" }, c.title || "Untitled")),
@@ -2133,8 +2151,8 @@
         label, h("span", { class: "key" }, a.key));
     };
     const open = TEST.demo
-      ? h("button", { class: "btn quiet", type: "button", onclick: () => ui.toast("In the demo, chats don't open in ChatGPT.") }, "Open in ChatGPT", icon("external", 15))
-      : h("a", { class: "btn quiet", href: `/c/${encodeURIComponent(c.id)}`, target: "_blank", rel: "noopener noreferrer" }, "Open in ChatGPT", icon("external", 15));
+      ? h("button", { class: "btn quiet", type: "button", title: "Open in ChatGPT", onclick: () => ui.toast("In the demo, chats don't open in ChatGPT.") }, h("span", { class: "lbl" }, "Open in ChatGPT"), icon("external", 15))
+      : h("a", { class: "btn quiet", href: `/c/${encodeURIComponent(c.id)}`, target: "_blank", rel: "noopener noreferrer", title: "Open in ChatGPT" }, h("span", { class: "lbl" }, "Open in ChatGPT"), icon("external", 15));
     put(el.actionsCol, actionBtn("delete"), c.archived ? actionBtn("unarchive") : actionBtn("archive"), actionBtn("rename"), actionBtn("protect"), h("div", { class: "spacer" }), open);
 
     let state = null;
@@ -2654,7 +2672,7 @@
       applyAction(act.dataset.act, [c]);
       return;
     }
-    if (e.target.closest(".cb")) {
+    if (e.target.closest(".cb, .gut")) {
       toggleSelect(id, e.shiftKey);
       return;
     }
@@ -2680,6 +2698,9 @@
       row.setAttribute("aria-selected", "true");
       if (scroll) row.scrollIntoView({ block: "nearest" });
     }
+    // Screen readers follow the highlighted row while focus stays on the list.
+    if (row) ui.el.list.setAttribute("aria-activedescendant", row.id);
+    else ui.el.list.removeAttribute("aria-activedescendant");
     placeCursor(true);
   }
 
