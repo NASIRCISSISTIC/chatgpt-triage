@@ -1202,21 +1202,38 @@
     .card .frac b { color: var(--fg); font-weight: 600; }
     .bar { height: 3px; margin: 18px 0 20px; border-radius: 3px; background: var(--fill2); overflow: hidden; }
     .bar i { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--fg); transition: width .7s var(--ease); }
-    .now { display: flex; gap: 12px; min-width: 0; }
-    .now .v { flex-shrink: 0; min-width: 96px; color: var(--fg3); }
-    .now .ttl { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-    .card .sub { margin-top: 6px; min-height: 18px; color: var(--fg3); font-variant-numeric: tabular-nums; }
-    .card .big { margin: 4px 0 6px; font: 300 44px/1.1 var(--mono); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
-    .card .explain { color: var(--fg2); line-height: 1.55; }
-    .log { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--line); max-height: 210px; overflow: auto; }
-    .log div { display: flex; gap: 12px; padding: 5px 0; white-space: nowrap; min-width: 0; }
-    .log div.new { animation: up .32s var(--ease) both; }
-    .log .g { width: 14px; flex-shrink: 0; color: var(--green); }
-    .log .v { min-width: 84px; flex-shrink: 0; color: var(--fg3); }
-    .log .ttl { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--fg2); }
-    .log .bad .g, .log .bad .v, .log .bad .ttl { color: var(--red); }
-    .log .unsure .g { color: var(--amber); }
-    .log .why { flex-shrink: 0; color: var(--fg3); }
+    .card .big { margin: 0 0 6px; font: 300 44px/1.1 var(--mono); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+    .card .explain, .card .say { color: var(--fg2); line-height: 1.55; }
+    .card .say { min-height: 40px; }
+    .fold { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .45s var(--ease), opacity .3s var(--ease); }
+    .fold.open { grid-template-rows: 1fr; opacity: 1; }
+    .fold > div { min-height: 0; overflow: hidden; }
+    .wheel {
+      position: relative; height: 196px; margin: 4px -12px 0; perspective: 2000px; overflow: hidden; outline: none; cursor: grab; touch-action: none; user-select: none;
+      -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24%, #000 76%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 24%, #000 76%, transparent);
+    }
+    .wheel.dragging { cursor: grabbing; }
+    .wheel::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 36px; margin-top: -18px; border-radius: 8px; background: var(--fill); }
+    .wheel:focus-visible::before { box-shadow: inset 0 0 0 1.5px var(--fg3); }
+    .drum { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .6s var(--ease); }
+    .wheel.dragging .drum, .wheel.dragging .wi { transition-duration: .18s; }
+    .drum.instant, .drum.instant .wi { transition: none; }
+    .wi {
+      position: absolute; left: 0; right: 0; top: 50%; height: 36px; margin-top: -18px; display: flex; align-items: center; gap: 12px; padding: 0 12px;
+      white-space: nowrap; opacity: .55; backface-visibility: hidden; -webkit-backface-visibility: hidden; transition: opacity .6s var(--ease);
+    }
+    .wi.mid { opacity: 1; }
+    .wi .g { width: 14px; flex-shrink: 0; display: grid; place-items: center; color: var(--fg3); }
+    .wi .g .spin { margin: 0; width: 10px; height: 10px; }
+    .wi .v { width: 84px; flex-shrink: 0; color: var(--fg3); font-variant-numeric: tabular-nums; }
+    .wi .ttl { min-width: 0; overflow: hidden; text-overflow: ellipsis; color: var(--fg2); }
+    .wi.mid .v { color: var(--fg2); }
+    .wi.mid .ttl { color: var(--fg); }
+    .wi.ok .g { color: var(--green); }
+    .wi.bad .g, .wi.bad .v, .wi.bad .ttl { color: var(--red); }
+    .wi.unsure .g { color: var(--amber); }
+    .card .why { min-height: 18px; margin-top: 4px; font-size: 12px; color: var(--fg3); text-align: center; }
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
     .card .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
     .card .tip { margin-top: 16px; color: var(--fg3); line-height: 1.55; }
 
@@ -1358,8 +1375,7 @@
     modal: null,
     modalClose: null,
     runSig: "",
-    runEls: null,
-    logSeen: 0,
+    rv: null,
     lastQueueTotal: null,
     themeOverride: null,
     themeBusy: false,
@@ -1804,8 +1820,13 @@
     ui.renderTabs();
     ui.renderTop();
     ui.renderBanners();
-    ui.renderList();
-    ui.renderReader();
+    // While a run is going, the list sits blurred behind the run card. Redrawing
+    // it after every change only makes the blur shimmer, so it waits until the end.
+    const running = Store.data.run && ACTIVE.includes(Store.data.run.status);
+    if (!running) {
+      ui.renderList();
+      ui.renderReader();
+    }
     ui.renderRun();
     ui.renderStatus();
     ui.renderLauncher();
@@ -2249,6 +2270,17 @@
   }
 
   // The card that covers the workspace while the queue runs.
+  // The run card is built once per run and then updated in place, so nothing
+  // flickers between changes. Its log is a wheel, like the picker in Apple's
+  // Clock app: the current chat sits in the middle, finished ones roll away
+  // above, the next ones wait below. Scroll, drag or use the arrow keys on it
+  // to look back.
+  const WHEEL = { row: 36, radius: 118, reach: 6 };
+  WHEEL.step = (2 * Math.atan(WHEEL.row / 2 / WHEEL.radius) * 180) / Math.PI;
+  const setText = (node, text) => {
+    if (node.textContent !== text) node.textContent = text;
+  };
+
   ui.renderRun = function renderRun() {
     const el = ui.el;
     if (!el.runLayer) return;
@@ -2260,14 +2292,13 @@
     el.tabs.inert = busy;
     if (!r) {
       ui.runSig = "";
-      ui.runEls = null;
-      ui.logSeen = 0;
+      ui.rv = null;
       return;
     }
     if (ui.lockedElsewhere) {
       if (ui.runSig !== "elsewhere") {
         ui.runSig = "elsewhere";
-        ui.runEls = null;
+        ui.rv = null;
         put(el.runLayer, h("div", { class: "card" },
           h("div", { class: "head" }, h("div", { class: "state hold" }, h("i"), "Busy in Another Tab")),
           h("div", { class: "bar" }, h("i")),
@@ -2276,106 +2307,222 @@
       }
       return;
     }
-    // Rebuild only when something meaningful changed, so buttons stay clickable between ticks.
-    const sig = [r.status, r.i, r.results.length, r.note, r.current, r.nextAt ? 1 : 0].join("|");
-    if (sig === ui.runSig && ui.runEls) {
-      tickRun();
-      return;
-    }
-    ui.runSig = sig;
+    if (!ui.rv || ui.rv.run !== r) buildRunCard(r);
+    updateRunCard(r);
+  };
 
+  function buildRunCard(r) {
+    const v = { run: r, items: new Map(), shown: -1, browse: null, browseAt: 0, btnSig: "", said: r.results.length, label: "", sawIssue: false };
+    v.labelEl = h("span");
+    v.state = h("div", { class: "state" }, h("i"), v.labelEl);
+    v.doneEl = h("b");
+    v.totalEl = h("span");
+    v.bar = h("i");
+    v.big = h("div", { class: "big" });
+    v.fold = h("div", { class: "fold" }, h("div", null, v.big));
+    v.say = h("div", { class: "say" });
+    v.drum = h("div", { class: "drum instant" });
+    v.wheel = h("div", { class: "wheel", tabindex: "0", role: "group", "aria-label": "This run, one chat per row. Use the arrow keys to look back." }, v.drum);
+    v.why = h("div", { class: "why" });
+    v.btns = h("div", { class: "btns" });
+    v.tip = h("div", { class: "tip" }, "Keep this tab open. You can close this panel and keep using ChatGPT; the button in the corner shows progress. Other ChatGPT tabs and the desktop app share the same limit, so close them if you can.");
+    v.live = h("div", { class: "sr", role: "status", "aria-live": "polite" });
+    v.card = h("div", { class: "card" },
+      h("div", { class: "head" }, v.state, h("div", { class: "frac" }, v.doneEl, v.totalEl)),
+      h("div", { class: "bar" }, v.bar),
+      v.fold, v.say, v.wheel, v.why, v.btns, v.tip, v.live);
+    wireWheel(v);
+    ui.rv = v;
+    ui.runSig = "card";
+    put(ui.el.runLayer, v.card);
+  }
+
+  function wireWheel(v) {
+    const go = (to) => {
+      const max = v.run.jobs.length - 1;
+      v.browse = clamp(Math.round(to), 0, max);
+      v.browseAt = now();
+      updateRunCard(v.run);
+    };
+    const at = () => (v.browse == null ? v.shown : v.browse);
+    let acc = 0;
+    v.wheel.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      acc += e.deltaMode === 1 ? e.deltaY * WHEEL.row : e.deltaY;
+      const steps = Math.trunc(acc / 40);
+      if (!steps) return;
+      acc -= steps * 40;
+      go(at() + steps);
+    }, { passive: false });
+    v.wheel.addEventListener("keydown", (e) => {
+      const to = { ArrowUp: at() - 1, ArrowDown: at() + 1, PageUp: at() - 5, PageDown: at() + 5, Home: 0, End: v.run.jobs.length - 1 }[e.key];
+      if (to === undefined) return;
+      e.preventDefault();
+      e.stopPropagation();
+      go(to);
+    });
+    v.wheel.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      const startY = e.clientY;
+      const from = at();
+      v.wheel.setPointerCapture(e.pointerId);
+      v.wheel.classList.add("dragging");
+      const moveTo = (ev) => go(from + (startY - ev.clientY) / WHEEL.row);
+      const end = () => {
+        v.wheel.classList.remove("dragging");
+        v.wheel.removeEventListener("pointermove", moveTo);
+      };
+      v.wheel.addEventListener("pointermove", moveTo);
+      v.wheel.addEventListener("pointerup", end, { once: true });
+      v.wheel.addEventListener("pointercancel", end, { once: true });
+    });
+  }
+
+  function updateRunCard(r) {
+    const v = ui.rv;
     const total = r.jobs.length;
+    const results = new Map(r.results.map((x) => [x.id, x]));
     const done = r.results.filter((x) => x.status === "done").length;
     const failed = r.results.filter((x) => x.status === "failed").length;
     const unconfirmed = r.results.filter((x) => x.status === "unconfirmed").length;
     const live = ACTIVE.includes(r.status);
-    const job = r.current ? r.jobs.find((j) => j.id === r.current) : null;
+    const finished = r.status === "done" || r.status === "stopped";
     const trouble = failed || unconfirmed;
     const [label, light] = {
       backup: ["Backing Up", "go"], running: ["Running", "go"], waiting: ["Waiting", "wait"], verifying: ["Checking", "go"],
       paused: ["Paused", "hold"], done: trouble ? ["Done, Needs a Look", "bad"] : ["Done", "ok"], stopped: ["Stopped", "hold"],
     }[r.status] || ["Queue", ""];
 
-    const bar = h("i");
-    bar.style.width = `${total ? Math.round((r.i / total) * 100) : 0}%`;
-    const parts = [
-      h("div", { class: "head" },
-        h("div", { class: `state ${light}` }, h("i"), label),
-        h("div", { class: "frac" }, h("b", null, String(r.i)), ` / ${total}`)),
-      h("div", { class: "bar" }, bar),
-    ];
+    setText(v.labelEl, label);
+    const stateCls = `state ${light}`;
+    if (v.state.className !== stateCls) v.state.className = stateCls;
+    setText(v.doneEl, String(r.i));
+    setText(v.totalEl, ` / ${total}`);
+    v.bar.style.width = `${total ? Math.round((r.i / total) * 100) : 0}%`;
 
-    const sub = h("div", { class: "sub" });
-    let big = null;
-    const nowLine = (verb, title, extra) => h("div", { class: "now" }, h("span", { class: "v" }, verb), h("span", { class: "ttl" }, title, extra || null));
-    if (r.status === "waiting") {
-      big = h("div", { class: "big" }, clock(Api.cooldownLeft()));
-      parts.push(big, h("div", { class: "explain" }, `ChatGPT asked Triage to slow down. It carries on by itself at ${fmtClock(Store.data.cooldownUntil)}.`));
-      if (job) parts.push(h("div", { style: "height:14px" }), nowLine(`Next: ${ACTION[job.action].label}`, job.title || "Untitled", job.action === "rename" ? ` → ${job.newTitle}` : null));
-    } else if (r.status === "backup") {
-      parts.push(nowLine("Reading", (job && job.title) || "…"), sub);
-      sub.textContent = r.note;
-    } else if (r.status === "running" && job) {
-      const a = ACTION[job.action];
-      parts.push(nowLine(r.nextAt ? `Next: ${a.label}` : a.verb, job.title || "Untitled", job.action === "rename" ? ` → ${job.newTitle}` : null), sub);
-    } else if (r.status === "verifying") {
-      parts.push(nowLine("Checking", "Your chat list"), sub);
-      sub.textContent = r.note;
-    } else if (r.status === "paused") {
-      parts.push(h("div", { class: "explain" }, r.note || "Nothing else changes until you resume."));
-    } else if (r.status === "done" || r.status === "stopped") {
+    const waiting = r.status === "waiting";
+    v.fold.classList.toggle("open", waiting);
+    if (waiting) setText(v.big, clock(Api.cooldownLeft()));
+
+    let say = "";
+    if (waiting) say = `ChatGPT asked Triage to slow down. It carries on by itself at ${fmtClock(Store.data.cooldownUntil)}.`;
+    else if (r.status === "backup") say = r.note;
+    else if (r.status === "verifying") say = r.note || "Double-checking with ChatGPT.";
+    else if (r.status === "running") {
+      const left = Math.ceil(((total - r.i) * Store.data.settings.gap) / 60);
+      say = r.note || `One change every ${Store.data.settings.gap}s. About ${plural(left, "minute")} to go.`;
+    } else if (r.status === "paused") say = r.note || "Nothing else changes until you resume.";
+    else if (finished) {
       const bits = [`${plural(done, "change")} made`];
       if (failed) bits.push(`${failed} failed`);
       if (unconfirmed) bits.push(`${unconfirmed} didn't stick and are marked again`);
       if (r.status === "stopped" && r.i < total) bits.push(`${total - r.i} not reached, still marked`);
-      parts.push(h("div", { class: "explain" }, `${bits.join(". ")}.`));
+      say = `${bits.join(". ")}.`;
     }
+    setText(v.say, say);
 
-    // A log: newest last. Finished runs list only what needs attention.
-    const finished = r.status === "done" || r.status === "stopped" || r.status === "paused";
-    const issues = r.results.filter((x) => x.status !== "done");
-    const items = finished && issues.length ? issues.slice(-40) : r.results.slice(-6);
-    if (items.length) {
-      const glyph = { done: "✓", failed: "✕", unconfirmed: "~" };
-      parts.push(h("div", { class: "log" }, items.map((x, i) => {
-        const isNew = r.results.length > ui.logSeen && i === items.length - 1 && !finished;
-        const cls = x.status === "failed" ? "bad" : x.status === "unconfirmed" ? "unsure" : "";
-        return h("div", { class: `${cls}${isNew ? " new" : ""}` },
-          h("span", { class: "g" }, glyph[x.status] || "·"),
-          h("span", { class: "v" }, x.note === "It was already gone." ? "Gone" : ACTION[x.action].past),
-          h("span", { class: "ttl" }, x.title || "Untitled", x.action === "rename" && x.newTitle ? ` → ${x.newTitle}` : ""),
-          x.status !== "done" && x.note ? h("span", { class: "why" }, x.note) : null);
-      })));
-      ui.logSeen = r.results.length;
+    // Which row sits in the middle: the current chat, unless someone is looking back.
+    if (v.browse != null && live && now() - v.browseAt > 6 * SEC) v.browse = null;
+    if (finished && trouble && !v.sawIssue) {
+      v.sawIssue = true;
+      const first = r.jobs.findIndex((j) => results.has(j.id) && results.get(j.id).status !== "done");
+      if (first >= 0) v.browse = first;
     }
+    const c = v.browse != null ? v.browse : clamp(r.i, 0, total - 1);
+    renderWheel(v, r, results, c);
+    const mid = r.jobs[c] && results.get(r.jobs[c].id);
+    let why = "";
+    if (mid && mid.status !== "done" && mid.note) why = mid.note;
+    else if (v.browse != null && live) why = "Looking back. It returns to the current chat in a moment.";
+    setText(v.why, why);
 
-    const btns = [];
-    if (live) {
-      btns.push(h("button", { class: "btn primary", type: "button", onclick: () => Runner.pause() }, "Pause"));
-      btns.push(h("button", { class: "btn quiet", type: "button", onclick: () => Runner.stop() }, "Stop"));
-    } else if (r.status === "paused") {
-      btns.push(h("button", { class: "btn primary", type: "button", disabled: ui.lockedElsewhere, onclick: () => Runner.resume() }, "Resume"));
-      btns.push(h("button", { class: "btn quiet", type: "button", onclick: () => Runner.stop() }, "Stop"));
-    } else {
-      btns.push(h("button", { class: "btn primary", type: "button", onclick: () => Runner.dismiss() }, "Close"));
-      btns.push(h("button", { class: "btn quiet", type: "button", onclick: downloadReport }, "Download Report"));
-      if (Runner.backup.length) btns.push(h("button", { class: "btn quiet", type: "button", onclick: () => download(`chatgpt-triage-backup-${fileStamp()}.json`, JSON.stringify(Runner.backup, null, 2), "application/json") }, "Download Backup"));
+    const btnSig = live ? "live" : r.status === "paused" ? `paused:${ui.lockedElsewhere}` : `end:${Runner.backup.length}`;
+    if (btnSig !== v.btnSig) {
+      v.btnSig = btnSig;
+      const btns = [];
+      if (live) {
+        btns.push(h("button", { class: "btn primary", type: "button", onclick: () => Runner.pause() }, "Pause"));
+        btns.push(h("button", { class: "btn quiet", type: "button", onclick: () => Runner.stop() }, "Stop"));
+      } else if (r.status === "paused") {
+        btns.push(h("button", { class: "btn primary", type: "button", disabled: ui.lockedElsewhere, onclick: () => Runner.resume() }, "Resume"));
+        btns.push(h("button", { class: "btn quiet", type: "button", onclick: () => Runner.stop() }, "Stop"));
+      } else {
+        btns.push(h("button", { class: "btn primary", type: "button", onclick: () => Runner.dismiss() }, "Close"));
+        btns.push(h("button", { class: "btn quiet", type: "button", onclick: downloadReport }, "Download Report"));
+        if (Runner.backup.length) btns.push(h("button", { class: "btn quiet", type: "button", onclick: () => download(`chatgpt-triage-backup-${fileStamp()}.json`, JSON.stringify(Runner.backup, null, 2), "application/json") }, "Download Backup"));
+      }
+      put(v.btns, btns);
     }
-    parts.push(h("div", { class: "btns" }, btns));
-    if (live) parts.push(h("div", { class: "tip" }, "Keep this tab open. You can close this panel and keep using ChatGPT; the button in the corner shows progress. Other ChatGPT tabs and the desktop app share the same limit, so close them if you can."));
+    v.tip.hidden = !live;
 
-    put(el.runLayer, h("div", { class: "card", role: "status", "aria-live": "polite" }, parts));
-    ui.runEls = { sub, big };
-    tickRun();
-  };
+    // Screen readers hear each finished chat and each change of state, once.
+    if (r.results.length > v.said) {
+      const x = r.results[r.results.length - 1];
+      v.said = r.results.length;
+      v.live.textContent = `${x.status === "failed" ? "Failed" : ACTION[x.action].past}: ${x.title || "Untitled"}. ${r.i} of ${total}.`;
+    } else if (label !== v.label) {
+      v.live.textContent = `${label}. ${say}`;
+    }
+    v.label = label;
+  }
 
-  function tickRun() {
-    const r = Store.data.run;
-    const els = ui.runEls;
-    if (!r || !els) return;
-    if (els.big) els.big.textContent = clock(Api.cooldownLeft());
-    if (r.status === "running" && r.nextAt) els.sub.textContent = `In ${Math.max(0, Math.ceil((r.nextAt - now()) / SEC))}s`;
-    else if (r.status === "running" && r.note) els.sub.textContent = r.note;
+  function renderWheel(v, r, results, c) {
+    const lo = Math.max(0, c - WHEEL.reach);
+    const hi = Math.min(r.jobs.length - 1, c + WHEEL.reach);
+    for (const [i, node] of v.items) {
+      if (i < lo || i > hi) {
+        node.remove();
+        v.items.delete(i);
+      }
+    }
+    for (let i = lo; i <= hi; i += 1) {
+      let node = v.items.get(i);
+      if (!node) {
+        node = h("div", { class: "wi" }, h("span", { class: "g" }), h("span", { class: "v" }), h("span", { class: "ttl" }));
+        node.style.transform = `rotateX(${-i * WHEEL.step}deg) translateZ(${WHEEL.radius}px)`;
+        v.items.set(i, node);
+        v.drum.append(node);
+      }
+      paintWheelRow(node, r, i, results, i === c);
+    }
+    if (v.shown !== c) {
+      v.shown = c;
+      v.drum.style.transform = `translateZ(${-WHEEL.radius}px) rotateX(${c * WHEEL.step}deg)`;
+    }
+    if (v.drum.classList.contains("instant")) requestAnimationFrame(() => requestAnimationFrame(() => v.drum.classList.remove("instant")));
+  }
+
+  function paintWheelRow(node, r, i, results, mid) {
+    const job = r.jobs[i];
+    const a = ACTION[job.action];
+    const x = results.get(job.id);
+    let kind = "todo";
+    let glyph = "";
+    let verb = a.label;
+    if (x) {
+      kind = x.status === "failed" ? "bad" : x.status === "unconfirmed" ? "unsure" : "ok";
+      glyph = { done: "✓", failed: "✕", unconfirmed: "~" }[x.status] || "·";
+      verb = x.status === "failed" ? "Failed" : x.status === "unconfirmed" ? "Check" : x.note === "It was already gone." ? "Gone" : a.past;
+    } else if (i === r.i && r.status === "running") {
+      kind = "now";
+      if (r.nextAt) verb = `In ${Math.max(0, Math.ceil((r.nextAt - now()) / SEC))}s`;
+      else {
+        verb = a.verb;
+        glyph = "spin";
+      }
+    } else if (i === r.i && r.status === "waiting") {
+      kind = "now";
+      verb = "Waiting";
+    }
+    const cls = `wi ${kind}${mid ? " mid" : ""}`;
+    if (node.className !== cls) node.className = cls;
+    const [g, vb, ttl] = node.children;
+    if (g.dataset.g !== glyph) {
+      g.dataset.g = glyph;
+      put(g, glyph === "spin" ? spinner() : glyph);
+    }
+    setText(vb, verb);
+    setText(ttl, `${job.title || "Untitled"}${job.action === "rename" && job.newTitle ? ` → ${job.newTitle}` : ""}`);
   }
 
   // ---------------------------------------------------------------------------
