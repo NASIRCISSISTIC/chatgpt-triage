@@ -71,11 +71,11 @@
   const scaled = (ms) => Math.round(ms * SCALE);
 
   const ACTION = {
-    delete: { label: "Delete", verb: "Deleting", key: "D", icon: "trash" },
-    archive: { label: "Archive", verb: "Archiving", key: "A", icon: "archive" },
-    unarchive: { label: "Unarchive", verb: "Unarchiving", key: "U", icon: "restore" },
-    rename: { label: "Rename", verb: "Renaming", key: "R", icon: "pencil" },
-    protect: { label: "Protect", verb: "", key: "P", icon: "shield" },
+    delete: { label: "Delete", verb: "deleting", past: "deleted", key: "D", icon: "trash" },
+    archive: { label: "Archive", verb: "archiving", past: "archived", key: "A", icon: "archive" },
+    unarchive: { label: "Unarchive", verb: "unarchiving", past: "unarchived", key: "U", icon: "restore" },
+    rename: { label: "Rename", verb: "renaming", past: "renamed", key: "R", icon: "pencil" },
+    protect: { label: "Protect", verb: "", past: "", key: "P", icon: "shield" },
   };
 
   // ---------------------------------------------------------------------------
@@ -120,12 +120,6 @@
     if (typeof value === "number") return value < 1e12 ? value * 1000 : value;
     const t = Date.parse(value);
     return Number.isNaN(t) ? 0 : t;
-  }
-
-  function fmtDate(t, long) {
-    if (!t) return "—";
-    const opts = long ? { year: "numeric", month: "short", day: "numeric" } : { year: "2-digit", month: "short", day: "numeric" };
-    return new Date(t).toLocaleDateString(undefined, opts);
   }
 
   const fmtClock = (t) => new Date(t).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
@@ -214,7 +208,7 @@
     svg.setAttribute("height", String(size));
     svg.setAttribute("fill", "none");
     svg.setAttribute("stroke", "currentColor");
-    svg.setAttribute("stroke-width", "1.8");
+    svg.setAttribute("stroke-width", "1.5");
     svg.setAttribute("stroke-linecap", "round");
     svg.setAttribute("stroke-linejoin", "round");
     svg.setAttribute("aria-hidden", "true");
@@ -925,191 +919,376 @@
 
   // ---------------------------------------------------------------------------
   // Interface
+  //
+  // One rule for type: anything the machine says (labels, dates, counts, keys,
+  // status) is monospace; anything a person wrote (chats, titles, sentences) is
+  // sans-serif. Black and white throughout. Red only means "this deletes".
   // ---------------------------------------------------------------------------
 
   const CSS = `
     :host { all: initial; }
     .root {
-      --bg: #ffffff; --bg2: #f7f7f8; --bg3: #ececef; --fg: #0d0d0d; --fg2: #5d5d66; --fg3: #8e8e98;
-      --line: #e3e3e8; --danger: #c9302c; --danger-bg: #fdecea; --blue: #1d5fd6; --blue-bg: #e8effd;
-      --green: #16794a; --green-bg: #e5f5ec; --violet: #6d3fd6; --violet-bg: #efe9fd; --amber: #9a5b00; --amber-bg: #fff3dc;
-      --focus: #1d5fd6; --shadow: 0 24px 64px rgba(0,0,0,.22), 0 2px 8px rgba(0,0,0,.08);
-      font: 14px/1.45 ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      color: var(--fg); -webkit-font-smoothing: antialiased; color-scheme: light;
+      --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+      --ease: cubic-bezier(.22, 1, .36, 1);
+      --ease-in: cubic-bezier(.55, 0, .75, .2);
+      --bg: #ffffff; --bg1: #ffffff; --bg2: #f4f4f4; --bg3: #ebebeb;
+      --line: #ededed; --line2: #d6d6d6;
+      --fg: #0a0a0a; --fg2: #4f4f4f; --fg3: #8a8a8a; --fg4: #bcbcbc;
+      --red: #d70015; --red-bg: rgba(215, 0, 21, .07);
+      --veil: rgba(255, 255, 255, .74);
+      --shadow: 0 1px 2px rgba(0, 0, 0, .04), 0 28px 70px -18px rgba(0, 0, 0, .28);
+      color-scheme: light;
+      font: 14px/1.5 var(--sans);
+      color: var(--fg);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
     .root.dark {
-      --bg: #212121; --bg2: #1a1a1a; --bg3: #303030; --fg: #ececec; --fg2: #b4b4b4; --fg3: #8a8a8a;
-      --line: #383838; --danger: #ff7b72; --danger-bg: rgba(255,123,114,.13); --blue: #7aa7ff; --blue-bg: rgba(122,167,255,.14);
-      --green: #6ad39a; --green-bg: rgba(106,211,154,.13); --violet: #b39dff; --violet-bg: rgba(179,157,255,.14);
-      --amber: #f5c060; --amber-bg: rgba(245,192,96,.13); --focus: #7aa7ff;
-      --shadow: 0 24px 64px rgba(0,0,0,.6), 0 2px 8px rgba(0,0,0,.4);
+      --bg: #000000; --bg1: #0a0a0a; --bg2: #121212; --bg3: #1b1b1b;
+      --line: #1a1a1a; --line2: #2c2c2c;
+      --fg: #f4f4f4; --fg2: #a6a6a6; --fg3: #6c6c6c; --fg4: #414141;
+      --red: #ff453a; --red-bg: rgba(255, 69, 58, .12);
+      --veil: rgba(0, 0, 0, .7);
+      --shadow: 0 0 0 1px rgba(255, 255, 255, .03), 0 40px 90px -24px rgba(0, 0, 0, .95);
       color-scheme: dark;
     }
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--line2) transparent; }
     [hidden] { display: none !important; }
     button, input, select { font: inherit; color: inherit; }
-    a { color: inherit; }
-    :focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+    a { color: inherit; text-decoration: none; }
+    ::selection { background: var(--fg); color: var(--bg); }
+    :focus { outline: none; }
+    :focus-visible { outline: 1px solid var(--fg); outline-offset: 2px; }
 
+    @keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.992); } }
+    @keyframes sink { to { opacity: 0; transform: translateY(6px) scale(.996); } }
+    @keyframes fade { from { opacity: 0; } }
+    @keyframes fade-out { to { opacity: 0; } }
+    @keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.985); } }
+    @keyframes up { from { opacity: 0; transform: translateY(6px); } }
+    @keyframes slide { from { opacity: 0; transform: translateX(-6px); } }
+    @keyframes strike { from { transform: scaleX(0); } }
+    @keyframes blink { 50% { opacity: 0; } }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+    @keyframes toast { from { opacity: 0; transform: translate(-50%, 10px) scale(.98); } }
+    @keyframes toast-out { to { opacity: 0; transform: translate(-50%, 6px); } }
+
+    /* Launcher on chatgpt.com */
     .launcher {
-      position: fixed; right: 18px; bottom: 84px; z-index: 1; display: inline-flex; align-items: center; gap: 7px;
-      height: 36px; padding: 0 14px 0 11px; border-radius: 999px; border: 1px solid var(--line);
-      background: var(--bg); color: var(--fg); box-shadow: 0 4px 16px rgba(0,0,0,.14); cursor: pointer;
-      font-size: 13px; font-weight: 600;
+      position: fixed; right: 20px; bottom: 88px; display: inline-flex; align-items: center; gap: 10px;
+      height: 34px; padding: 0 15px 0 13px; border-radius: 999px; border: 1px solid #2a2a2a;
+      background: #0a0a0a; color: #f4f4f4; cursor: pointer; box-shadow: 0 10px 28px -10px rgba(0, 0, 0, .5);
+      transition: transform .2s var(--ease), box-shadow .2s var(--ease); animation: rise .45s var(--ease) both;
     }
-    .launcher:hover { background: var(--bg2); }
-    .launcher .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
-    .launcher .dot.wait { background: var(--amber); }
+    .launcher:hover { transform: translateY(-1px); box-shadow: 0 14px 32px -10px rgba(0, 0, 0, .6); }
+    .launcher:active { transform: scale(.97); }
+    .launcher .word { font: 600 10.5px/1 var(--sans); letter-spacing: .34em; margin-right: -.34em; }
+    .launcher .info { font: 11px/1 var(--mono); color: #9a9a9a; font-variant-numeric: tabular-nums; }
+    .launcher .dot { width: 6px; height: 6px; border-radius: 50%; background: #f4f4f4; }
+    .launcher .dot.live { animation: pulse 1.6s var(--ease) infinite; }
 
-    .panel { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); outline: none; }
-    .top { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-    .brand { display: flex; align-items: center; gap: 7px; font-weight: 650; font-size: 15px; margin-right: 6px; }
-    .brand .ver { font-weight: 500; font-size: 11px; color: var(--fg3); }
-    .tabs { display: flex; gap: 2px; background: var(--bg2); padding: 3px; border-radius: 10px; }
-    .tab { border: 0; background: transparent; padding: 5px 11px; border-radius: 7px; cursor: pointer; font-size: 13px; color: var(--fg2); }
-    .tab .n { color: var(--fg3); margin-left: 5px; font-size: 12px; font-variant-numeric: tabular-nums; }
-    .tab.on { background: var(--bg); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
-    .root.dark .tab.on { background: var(--bg3); }
+    /* Frame */
+    .panel { position: fixed; inset: 0; display: flex; flex-direction: column; background: var(--bg); outline: none; animation: rise .3s var(--ease) both; }
+    .panel.leaving { animation: sink .16s var(--ease-in) both; pointer-events: none; }
+    .top { display: flex; align-items: stretch; gap: 18px; height: 56px; padding: 0 20px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+    .brand { display: flex; align-items: center; gap: 12px; user-select: none; }
+    .brand .word { font: 600 12.5px/1 var(--sans); letter-spacing: .36em; margin-right: -.36em; }
+    .brand .caret { width: 7px; height: 13px; background: var(--fg); margin-left: 3px; animation: blink 1.15s steps(1) infinite; }
+    .brand .ver { font: 11px/1 var(--mono); color: var(--fg3); }
+    .tabs { position: relative; display: flex; margin-left: 10px; }
+    .tabbtns { display: flex; gap: 2px; }
+    .tab { border: 0; background: none; padding: 0 10px; cursor: pointer; display: flex; align-items: center; gap: 7px; font: 12.5px/1 var(--mono); color: var(--fg3); transition: color .18s; }
+    .tab:hover { color: var(--fg2); }
+    .tab.on { color: var(--fg); }
+    .tab .n { font-size: 11px; color: var(--fg4); font-variant-numeric: tabular-nums; transition: color .18s; }
+    .tab.on .n { color: var(--fg3); }
+    .tabind { position: absolute; left: 0; bottom: -1px; height: 1.5px; width: 0; background: var(--fg); opacity: 0; pointer-events: none; transition: transform .34s var(--ease), width .34s var(--ease), opacity .2s; }
+    .instant { transition: none !important; }
     .spacer { flex: 1; }
-    .queue { font-size: 12.5px; color: var(--fg2); display: flex; gap: 8px; flex-wrap: wrap; }
-    .queue b { font-weight: 600; }
-    .queue .q-delete b { color: var(--danger); } .queue .q-archive b { color: var(--blue); }
-    .queue .q-unarchive b { color: var(--green); } .queue .q-rename b { color: var(--violet); }
+    .queue { display: flex; align-items: center; gap: 16px; font: 12px/1 var(--mono); color: var(--fg3); white-space: nowrap; }
+    .queue b { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+    .queue .q-delete b { color: var(--red); }
+    .actions { display: flex; align-items: center; gap: 6px; }
 
     .btn {
-      height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg);
-      cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap;
+      height: 30px; padding: 0 11px; border-radius: 7px; border: 1px solid var(--line2); background: transparent; cursor: pointer;
+      display: inline-flex; align-items: center; gap: 8px; font: 12px/1 var(--mono); color: var(--fg); white-space: nowrap;
+      transition: background-color .15s, border-color .15s, color .15s, opacity .15s, transform .12s var(--ease);
     }
-    .btn:hover:not(:disabled) { background: var(--bg2); }
-    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn:hover:not(:disabled) { background: var(--bg2); border-color: var(--fg4); }
+    .btn:active:not(:disabled) { transform: scale(.97); }
+    .btn:disabled { opacity: .32; cursor: default; }
     .btn.primary { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 600; }
-    .btn.primary:hover:not(:disabled) { opacity: .88; background: var(--fg); }
-    .btn.icon { width: 32px; padding: 0; justify-content: center; }
-    .btn.small { height: 28px; padding: 0 9px; font-size: 12.5px; }
-    .btn.t-delete { color: var(--danger); } .btn.t-archive { color: var(--blue); }
-    .btn.t-unarchive { color: var(--green); } .btn.t-rename { color: var(--violet); }
-    .btn.on { background: var(--bg3); }
-
-    .banners:empty { display: none; }
-    .banner { display: flex; align-items: center; gap: 10px; padding: 9px 16px; font-size: 13px; border-bottom: 1px solid var(--line); }
-    .banner.warn { background: var(--amber-bg); color: var(--amber); }
-    .banner.bad { background: var(--danger-bg); color: var(--danger); }
-    .banner.info { background: var(--blue-bg); color: var(--blue); }
-
-    .main { flex: 1; display: flex; min-height: 0; position: relative; }
-    .left { width: min(600px, 48vw); min-width: 400px; display: flex; flex-direction: column; border-right: 1px solid var(--line); min-height: 0; }
-    .tools { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
-    .search {
-      flex: 1 1 220px; min-width: 0; height: 32px; padding: 0 11px; border-radius: 8px; border: 1px solid var(--line);
-      background: var(--bg2); outline: none;
+    .btn.primary:hover:not(:disabled) { background: var(--fg); border-color: var(--fg); opacity: .86; }
+    .btn.primary .count { opacity: .6; font-weight: 500; font-variant-numeric: tabular-nums; }
+    .btn.icon { width: 30px; padding: 0; justify-content: center; color: var(--fg2); border-color: transparent; }
+    .btn.icon:hover:not(:disabled) { color: var(--fg); background: var(--bg2); border-color: transparent; }
+    .btn.ghost { border-color: transparent; color: var(--fg2); }
+    .btn.ghost:hover:not(:disabled) { color: var(--fg); border-color: transparent; }
+    .btn.danger { color: var(--red); }
+    .btn.on { background: var(--bg3); border-color: var(--fg4); }
+    .btn.small { height: 26px; padding: 0 9px; font-size: 11.5px; }
+    .k, .kbd {
+      display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 4px;
+      border: 1px solid var(--line2); font: 10.5px/1 var(--mono); color: var(--fg3);
     }
-    .search:focus { border-color: var(--focus); background: var(--bg); }
-    .select { height: 32px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); padding: 0 8px; font-size: 13px; }
+    .btn.on .k { border-color: var(--fg4); color: var(--fg2); }
+
+    .banner { display: flex; align-items: center; gap: 14px; padding: 11px 20px; border-bottom: 1px solid var(--line); font: 12px/1.5 var(--sans); color: var(--fg2); animation: up .3s var(--ease) both; }
+    .banner .lbl { font: 600 10.5px/1 var(--mono); letter-spacing: .14em; color: var(--fg); }
+    .banner.bad, .banner.bad .lbl { color: var(--red); }
+    .banner .clock { margin-left: auto; font: 12px/1 var(--mono); color: var(--fg); font-variant-numeric: tabular-nums; }
+
+    /* List */
+    .main { flex: 1; display: flex; min-height: 0; position: relative; }
+    .left { width: min(640px, 48vw); min-width: 430px; display: flex; flex-direction: column; border-right: 1px solid var(--line); min-height: 0; }
+    .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 16px 16px 14px; }
+    .search {
+      flex: 1 1 220px; min-width: 0; height: 32px; padding: 0 12px; border-radius: 7px; border: 1px solid var(--line2);
+      background: transparent; font: 12.5px/1 var(--mono); outline: none; transition: border-color .18s;
+    }
+    .search::placeholder { color: var(--fg3); }
+    .search:focus { border-color: var(--fg); }
+    .select { height: 32px; border-radius: 7px; border: 1px solid var(--line2); background: var(--bg); padding: 0 8px; font: 12px/1 var(--mono); cursor: pointer; }
     .chips { display: flex; gap: 6px; }
-    .chip { height: 32px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg); cursor: pointer; font-size: 12.5px; }
+    .chip {
+      height: 28px; padding: 0 11px; border-radius: 999px; border: 1px solid var(--line2); background: transparent; cursor: pointer;
+      font: 11.5px/1 var(--mono); color: var(--fg2); transition: background-color .2s var(--ease), color .2s, border-color .2s;
+    }
+    .chip:hover { color: var(--fg); border-color: var(--fg4); }
     .chip.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 
-    .listhead { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 4px 12px; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--fg2); flex-wrap: wrap; }
+    .listhead {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 42px; padding: 6px 18px;
+      border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font: 11.5px/1 var(--mono); color: var(--fg3);
+    }
     .listhead .grow { flex: 1; }
-    .listhead .hint { color: var(--fg3); }
-    .list { flex: 1; overflow: auto; overscroll-behavior: contain; outline: none; }
+    .listhead b { color: var(--fg); font-weight: 600; }
+
+    .cb {
+      appearance: none; -webkit-appearance: none; margin: 0; width: 13px; height: 13px; flex-shrink: 0; cursor: pointer;
+      border: 1px solid var(--fg4); border-radius: 3px; background: transparent;
+      transition: background-color .15s, border-color .15s, box-shadow .15s;
+    }
+    .cb:hover { border-color: var(--fg2); }
+    .cb:checked { background: var(--fg); border-color: var(--fg); box-shadow: inset 0 0 0 2.5px var(--bg); }
+    .cb:indeterminate { background: var(--fg3); border-color: var(--fg3); box-shadow: inset 0 0 0 3.5px var(--bg); }
+    .cb:disabled { opacity: .28; cursor: default; }
+
+    .list { flex: 1; position: relative; overflow: auto; overscroll-behavior: contain; outline: none; padding: 6px 0 28px; }
+    .cursor {
+      position: absolute; top: 0; left: 8px; right: 8px; height: 34px; border-radius: 7px; background: var(--fg); opacity: 0;
+      pointer-events: none; transition: transform .22s var(--ease), height .22s var(--ease), opacity .18s;
+    }
+    .rows { position: relative; }
     .row {
-      display: grid; grid-template-columns: 20px 68px minmax(0, 1fr) auto; align-items: center; gap: 8px;
-      height: 38px; padding: 0 10px 0 12px; border-bottom: 1px solid var(--line); cursor: pointer;
+      position: relative; display: grid; grid-template-columns: 13px 82px minmax(0, 1fr) auto; align-items: center; column-gap: 14px;
+      height: 34px; margin: 0 8px; padding: 0 10px; border-radius: 7px; font: 12.5px/1 var(--mono); color: var(--fg);
+      transition: color .18s, background-color .18s;
     }
     .row:hover { background: var(--bg2); }
-    .row.focus { background: var(--bg3); box-shadow: inset 3px 0 0 var(--focus); }
-    .row.sel { background: var(--blue-bg); }
-    .row.focus.sel { box-shadow: inset 3px 0 0 var(--focus); }
-    .row .cb, .listhead .cb { margin: 0; width: 15px; height: 15px; cursor: pointer; accent-color: var(--focus); }
-    .row .date { font-size: 12px; color: var(--fg3); font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .row .title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 550; }
-    .row.seen .title { font-weight: 400; color: var(--fg2); }
-    .row.m-delete .title { color: var(--danger); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--danger) 45%, transparent); }
-    .row .end { display: flex; align-items: center; gap: 4px; }
-    .badge { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 5px; background: var(--bg3); color: var(--fg2); margin-right: 6px; vertical-align: 1px; }
-    .badge.prot { background: var(--green-bg); color: var(--green); }
-    .tag { font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; max-width: 190px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-    .tag.delete { color: var(--danger); background: var(--danger-bg); }
-    .tag.archive { color: var(--blue); background: var(--blue-bg); }
-    .tag.unarchive { color: var(--green); background: var(--green-bg); }
-    .tag.rename { color: var(--violet); background: var(--violet-bg); }
-    .acts { display: none; gap: 1px; }
-    .row:hover .acts, .row.focus .acts { display: flex; }
-    .mini { width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--fg2); cursor: pointer; display: grid; place-items: center; }
-    .mini:hover { background: var(--bg); color: var(--fg); }
-    .mini.on { color: var(--green); }
-    .loadmsg { padding: 28px 18px; color: var(--fg2); text-align: center; }
+    .row.sel { background: var(--bg3); }
+    .row.focus, .row.focus:hover { background: transparent; color: var(--bg); }
+    .row .date { font-size: 11.5px; color: var(--fg3); font-variant-numeric: tabular-nums; white-space: nowrap; transition: color .18s; }
+    .row .title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .row .t { position: relative; }
+    .row.seen .t { color: var(--fg2); }
+    .row.m-delete .t { color: var(--fg3); }
+    .row.m-delete .t::after {
+      content: ""; position: absolute; left: 0; right: 0; top: 55%; height: 1px; background: currentColor; transform-origin: left center;
+    }
+    .row.m-delete.fresh .t::after { animation: strike .38s var(--ease) both; }
+    .row.focus .t, .row.focus.seen .t { color: var(--bg); }
+    .row.focus.m-delete .t { color: color-mix(in srgb, var(--bg) 58%, transparent); }
+    .row.focus .date { color: color-mix(in srgb, var(--bg) 58%, transparent); }
+    .row.focus .cb { border-color: color-mix(in srgb, var(--bg) 45%, transparent); }
+    .row.focus .cb:checked { background: var(--bg); border-color: var(--bg); box-shadow: inset 0 0 0 2.5px var(--fg); }
+    .badge {
+      display: inline-block; margin-right: 8px; padding: 0 5px; border-radius: 4px; border: 1px solid var(--line2);
+      font: 10.5px/16px var(--mono); color: var(--fg3); vertical-align: 1px;
+    }
+    .row.focus .badge { border-color: color-mix(in srgb, var(--bg) 30%, transparent); color: color-mix(in srgb, var(--bg) 62%, transparent); }
+    .end { position: relative; display: flex; align-items: center; justify-content: flex-end; }
+    .tag {
+      max-width: 240px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 6px; border-radius: 4px;
+      font: 600 10px/18px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--fg2);
+      transition: opacity .14s, color .18s, background-color .18s;
+    }
+    .tag.fresh { animation: slide .24s var(--ease) both; }
+    .tag.delete { color: var(--red); }
+    .tag.prot { color: var(--fg3); }
+    .tag .v { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--fg); }
+    .row.focus .tag, .row.focus .tag .v { color: var(--bg); }
+    .row.focus .tag.delete { color: #fff; background: var(--red); }
+    .acts {
+      position: absolute; right: -6px; top: 50%; transform: translateY(-50%); display: flex; gap: 2px; padding-left: 30px;
+      opacity: 0; pointer-events: none; transition: opacity .15s; background: linear-gradient(to right, transparent, var(--bg2) 26px);
+    }
+    .row:hover .acts { opacity: 1; pointer-events: auto; }
+    .row:hover .tag { opacity: 0; }
+    .row.sel .acts { background: linear-gradient(to right, transparent, var(--bg3) 26px); }
+    .row.focus .acts { background: linear-gradient(to right, transparent, var(--fg) 26px); }
+    .mini {
+      width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--fg2); cursor: pointer;
+      display: grid; place-items: center; transition: background-color .12s, color .12s;
+    }
+    .mini:hover { background: var(--bg3); color: var(--fg); }
+    .mini.on { color: var(--fg); }
+    .row.focus .mini { color: color-mix(in srgb, var(--bg) 70%, transparent); }
+    .row.focus .mini:hover { background: color-mix(in srgb, var(--bg) 16%, transparent); color: var(--bg); }
 
+    .note { padding: 48px 24px; text-align: center; font: 12.5px/1.9 var(--mono); color: var(--fg3); animation: fade .3s var(--ease) both; }
+    .note b { color: var(--fg); font-weight: 500; }
+    .note .btn { margin-top: 16px; }
+    .spin { display: inline-block; width: 1ch; margin-right: 1ch; color: var(--fg); }
+
+    /* Reader */
     .reader { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; }
-    .rhead { padding: 16px 24px 12px; border-bottom: 1px solid var(--line); }
-    .rtitle { font-size: 18px; font-weight: 650; margin: 0 0 3px; overflow-wrap: anywhere; }
-    .rmeta { color: var(--fg2); font-size: 12.5px; }
-    .rstate { margin-top: 8px; font-size: 12.5px; font-weight: 600; }
-    .rstate.delete { color: var(--danger); } .rstate.archive { color: var(--blue); } .rstate.unarchive, .rstate.protect { color: var(--green); } .rstate.rename { color: var(--violet); }
-    .ractions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-    .kbd { font: 11px ui-monospace, SFMono-Regular, Consolas, monospace; padding: 0 5px; border-radius: 4px; border: 1px solid var(--line); border-bottom-width: 2px; color: var(--fg2); background: var(--bg); }
-    .msgs { flex: 1; overflow: auto; padding: 18px 24px 48px; overscroll-behavior: contain; }
-    .msg { max-width: 780px; margin: 0 auto 16px; }
-    .msg .who { font-size: 12px; font-weight: 600; color: var(--fg3); margin-bottom: 4px; }
-    .msg .txt { white-space: pre-wrap; overflow-wrap: anywhere; }
-    .msg.user .txt { background: var(--bg3); padding: 10px 14px; border-radius: 16px; }
-    .empty { height: 100%; display: grid; place-items: center; text-align: center; padding: 24px; color: var(--fg2); }
-    .empty .big { font-size: 15px; font-weight: 600; color: var(--fg); margin-bottom: 6px; }
-    .empty .small { font-size: 13px; line-height: 1.7; }
+    .rhead { padding: 28px 44px 20px; border-bottom: 1px solid var(--line); }
+    .rhead.fresh > * { animation: up .32s var(--ease) both; }
+    .rhead.fresh > :nth-child(2) { animation-delay: .03s; }
+    .rhead.fresh > :nth-child(3) { animation-delay: .06s; }
+    .rhead.fresh > :nth-child(4) { animation-delay: .09s; }
+    .rtitle { margin: 0 0 10px; font: 600 23px/1.25 var(--sans); letter-spacing: -.018em; overflow-wrap: anywhere; }
+    .rmeta { display: flex; flex-wrap: wrap; gap: 4px 16px; font: 11.5px/1.5 var(--mono); color: var(--fg3); }
+    .rstate { margin-top: 14px; font: 600 10.5px/1.5 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--fg2); }
+    .rstate.delete { color: var(--red); }
+    .rstate .v { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--fg); }
+    .ractions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 18px; }
+    .msgs { flex: 1; overflow: auto; overscroll-behavior: contain; padding: 32px 44px 72px; }
+    .msg { max-width: 700px; margin: 0 auto 30px; }
+    .msgs.enter .msg { animation: up .4s var(--ease) both; }
+    .msg .who { margin-bottom: 10px; font: 600 10px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--fg3); }
+    .msg .txt { font: 15px/1.72 var(--sans); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--fg); }
+    .msg.user .txt { padding-left: 15px; border-left: 1px solid var(--fg4); }
+    .idle { height: 100%; display: grid; place-items: center; padding: 32px; animation: fade .4s var(--ease) both; }
+    .legend { font: 12px/1 var(--mono); color: var(--fg3); }
+    .legend .h { margin-bottom: 26px; text-align: center; font: 500 15px/1.4 var(--sans); color: var(--fg); letter-spacing: -.01em; }
+    .legend .grid { display: grid; grid-template-columns: auto auto auto auto; gap: 14px 12px; align-items: center; justify-content: center; }
+    .legend .grid .kbd { justify-self: end; }
+    .legend .grid .l { margin-right: 26px; }
+    .legend .f { margin-top: 28px; text-align: center; font: 12.5px/1.6 var(--sans); color: var(--fg3); }
 
-    .runlayer { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 72%, transparent); backdrop-filter: blur(2px); z-index: 2; padding: 16px; }
-    .card { width: min(560px, 100%); max-height: 100%; overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 20px 22px; }
-    .card h2 { margin: 0 0 6px; font-size: 17px; }
-    .card .line { font-weight: 550; overflow-wrap: anywhere; }
-    .card .sub { color: var(--fg2); font-size: 13px; margin-top: 4px; min-height: 19px; }
-    .progress { height: 6px; border-radius: 99px; background: var(--bg3); overflow: hidden; margin: 14px 0 6px; }
-    .progress i { display: block; height: 100%; width: 0; background: var(--fg); transition: width .35s ease; }
-    .counts { font-size: 12.5px; color: var(--fg2); display: flex; gap: 12px; flex-wrap: wrap; }
-    .card .btns { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
-    .card .tip { font-size: 12px; color: var(--fg3); margin-top: 14px; }
-    .issues { margin-top: 12px; border: 1px solid var(--line); border-radius: 10px; max-height: 180px; overflow: auto; font-size: 12.5px; }
-    .issues div { padding: 6px 10px; border-bottom: 1px solid var(--line); }
-    .issues div:last-child { border-bottom: 0; }
-    .issues b { font-weight: 600; }
+    /* Run */
+    .runlayer {
+      position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; padding: 20px;
+      background: var(--veil); -webkit-backdrop-filter: blur(10px) saturate(120%); backdrop-filter: blur(10px) saturate(120%);
+      animation: fade .28s var(--ease) both;
+    }
+    .card { width: min(580px, 100%); max-height: 100%; overflow: auto; padding: 24px 26px 22px; background: var(--bg1); border: 1px solid var(--line2); border-radius: 16px; box-shadow: var(--shadow); animation: pop .36s var(--ease) both; }
+    .card .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .card .state { display: flex; align-items: center; font: 600 10.5px/1 var(--mono); letter-spacing: .16em; color: var(--fg); }
+    .card .state.bad { color: var(--red); }
+    .card .frac { font: 12px/1 var(--mono); color: var(--fg3); font-variant-numeric: tabular-nums; }
+    .card .frac b { color: var(--fg); font-weight: 600; }
+    .bar { height: 2px; margin: 18px 0 20px; border-radius: 2px; background: var(--line2); overflow: hidden; }
+    .bar i { display: block; height: 100%; width: 0; background: var(--fg); transition: width .7s var(--ease); }
+    .now { display: flex; gap: 12px; font: 13px/1.5 var(--mono); color: var(--fg); min-width: 0; }
+    .now .v { flex-shrink: 0; min-width: 11ch; color: var(--fg3); }
+    .now .ttl { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; min-width: 0; }
+    .card .sub { margin-top: 6px; min-height: 18px; font: 12px/1.5 var(--mono); color: var(--fg3); font-variant-numeric: tabular-nums; }
+    .card .big { margin: 2px 0 6px; font: 300 46px/1.1 var(--mono); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+    .card .explain { font: 13.5px/1.6 var(--sans); color: var(--fg2); }
+    .log { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--line); font: 12px/1 var(--mono); color: var(--fg3); max-height: 210px; overflow: auto; }
+    .log div { display: flex; gap: 12px; padding: 5px 0; white-space: nowrap; min-width: 0; }
+    .log div.new { animation: up .32s var(--ease) both; }
+    .log .g { width: 1ch; flex-shrink: 0; color: var(--fg); }
+    .log .v { min-width: 11ch; flex-shrink: 0; }
+    .log .ttl { color: var(--fg2); overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .log .bad, .log .bad .g, .log .bad .ttl { color: var(--red); }
+    .log .why { color: var(--fg3); flex-shrink: 0; }
+    .card .btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+    .card .tip { margin-top: 16px; font: 12.5px/1.6 var(--sans); color: var(--fg3); }
 
-    .foot { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--fg2); }
-    .foot .status { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-    .foot a { color: var(--fg2); }
-    .drawer { height: 190px; overflow: auto; border-top: 1px solid var(--line); background: var(--bg2); padding: 8px 14px; font: 12px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--fg2); }
-    .drawer .head { font-family: ui-sans-serif, -apple-system, "Segoe UI", sans-serif; color: var(--fg3); margin-bottom: 6px; }
-    .drawer .s429 { color: var(--amber); } .drawer .sbad { color: var(--danger); }
+    /* Status bar */
+    .foot { display: flex; align-items: center; gap: 18px; height: 36px; padding: 0 20px; border-top: 1px solid var(--line); font: 11.5px/1 var(--mono); color: var(--fg3); flex-shrink: 0; }
+    .foot .state { display: flex; align-items: center; gap: 8px; color: var(--fg); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .foot .state .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fg4); transition: background-color .2s; }
+    .foot .state.busy .dot { background: var(--fg); animation: pulse 1.4s var(--ease) infinite; }
+    .foot .state.bad { color: var(--red); } .foot .state.bad .dot { background: var(--red); }
+    .foot .status { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .foot .links { margin-left: auto; display: flex; gap: 2px; }
+    .foot .btn { height: 24px; padding: 0 8px; font-size: 11px; border-color: transparent; color: var(--fg3); }
+    .foot .btn:hover:not(:disabled) { color: var(--fg); background: var(--bg2); border-color: transparent; }
+    .foot .btn.on { color: var(--fg); background: var(--bg2); border-color: transparent; }
+    .drawer { height: 210px; overflow: auto; padding: 12px 20px; border-top: 1px solid var(--line); background: var(--bg1); font: 11.5px/1.75 var(--mono); color: var(--fg2); animation: up .24s var(--ease) both; }
+    .drawer .head { margin-bottom: 8px; font-family: var(--sans); font-size: 12px; color: var(--fg3); }
+    .drawer .s429 { color: var(--fg); font-weight: 600; }
+    .drawer .sbad { color: var(--red); }
 
-    .modal-wrap { position: fixed; inset: 0; background: rgba(0,0,0,.42); display: grid; place-items: center; z-index: 5; padding: 16px; }
-    .modal { width: min(540px, 100%); max-height: calc(100vh - 48px); overflow: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 20px 22px; }
-    .modal h2 { margin: 0 0 12px; font-size: 17px; }
-    .modal p { margin: 0 0 10px; color: var(--fg2); }
-    .modal .mfoot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
-    .modal .field { margin: 12px 0; }
-    .modal .field label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
-    .modal .field .help { font-size: 12.5px; color: var(--fg3); margin: 3px 0 0 24px; }
-    .modal .field .help.flush { margin-left: 0; }
-    .modal input[type=text], .modal input[type=number] { width: 100%; height: 36px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg2); padding: 0 10px; outline: none; }
-    .modal input[type=number] { width: 90px; }
-    .modal input:focus { border-color: var(--focus); background: var(--bg); }
-    .modal .inline { display: flex; align-items: center; gap: 8px; }
-    .summary { border: 1px solid var(--line); border-radius: 10px; margin: 6px 0 12px; }
-    .summary div { display: flex; justify-content: space-between; padding: 7px 12px; border-bottom: 1px solid var(--line); }
-    .summary div:last-child { border-bottom: 0; }
-    .summary .perm { color: var(--danger); font-size: 12px; }
-    .keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 13px; margin: 6px 0 14px; }
-    .keys .kbd { margin-right: 3px; }
+    /* Dialogs */
+    .modal-wrap {
+      position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 20px; background: var(--veil);
+      -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); animation: fade .22s var(--ease) both;
+    }
+    .modal-wrap.leaving { animation: fade-out .15s var(--ease-in) both; pointer-events: none; }
+    .modal-wrap.leaving .modal { animation: sink .15s var(--ease-in) both; }
+    .modal { width: min(520px, 100%); max-height: calc(100vh - 48px); overflow: auto; padding: 26px 28px 22px; background: var(--bg1); border: 1px solid var(--line2); border-radius: 16px; box-shadow: var(--shadow); animation: pop .32s var(--ease) both; }
+    .modal h2 { margin: 0 0 18px; font: 600 19px/1.3 var(--sans); letter-spacing: -.015em; }
+    .modal p, .modal .hint { margin: 0 0 12px; font: 14px/1.6 var(--sans); color: var(--fg2); }
+    .modal .hint { font-size: 13px; color: var(--fg3); }
+    .modal .lbl { margin: 22px 0 10px; font: 600 10.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--fg3); }
+    .modal .mfoot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+    .modal input[type=text], .modal input[type=number] {
+      width: 100%; height: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line2); background: transparent;
+      font: 13.5px/1 var(--mono); outline: none; transition: border-color .18s;
+    }
+    .modal input[type=number] { width: 80px; }
+    .modal input:focus { border-color: var(--fg); }
+    .check { display: flex; gap: 12px; align-items: flex-start; margin: 14px 0; cursor: pointer; }
+    .check .cb { margin-top: 3px; }
+    .check .t { font: 13px/1.5 var(--mono); color: var(--fg); }
+    .check .h { margin-top: 2px; font: 13px/1.5 var(--sans); color: var(--fg3); }
+    .table { border-top: 1px solid var(--line); font: 13px/1 var(--mono); }
+    .table div { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: baseline; padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .table .n { font-weight: 600; font-variant-numeric: tabular-nums; }
+    .table .x { margin-left: 12px; font-size: 11px; color: var(--fg3); }
+    .table .del, .table .del .x { color: var(--red); }
+    .eta { margin: 12px 0 4px; font: 12px/1.6 var(--mono); color: var(--fg3); }
+    .keys { display: grid; grid-template-columns: max-content 1fr; gap: 10px 18px; align-items: center; font: 12.5px/1.4 var(--mono); color: var(--fg2); }
+    .keys .kbd { margin-right: 4px; }
+    .inline { display: flex; align-items: center; gap: 10px; font: 13px/1 var(--mono); color: var(--fg2); }
     .stack { display: flex; flex-wrap: wrap; gap: 8px; }
-    .sep { height: 1px; background: var(--line); margin: 16px 0; }
 
-    .toast { position: fixed; left: 50%; bottom: 56px; transform: translateX(-50%); z-index: 9; background: var(--fg); color: var(--bg); padding: 9px 15px; border-radius: 10px; font-size: 13px; box-shadow: var(--shadow); max-width: min(560px, calc(100vw - 32px)); }
+    .toast {
+      position: fixed; left: 50%; bottom: 56px; z-index: 9; transform: translateX(-50%); max-width: min(560px, calc(100vw - 32px));
+      padding: 10px 16px; border-radius: 10px; background: var(--fg); color: var(--bg); font: 12px/1.45 var(--mono);
+      box-shadow: var(--shadow); animation: toast .32s var(--ease) both;
+    }
+    .toast.leaving { animation: toast-out .2s var(--ease-in) both; }
 
-    @media (max-width: 900px) {
+    @media (max-width: 980px) {
+      .queue { display: none; }
       .main { flex-direction: column; }
       .left { width: auto; min-width: 0; height: 52%; border-right: 0; border-bottom: 1px solid var(--line); }
-      .queue { display: none; }
+      .rhead, .msgs { padding-left: 22px; padding-right: 22px; }
+    }
+    @media (max-width: 640px) {
+      .top { gap: 10px; padding: 0 12px; }
+      .brand .ver, .tab .n { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
     }
   `;
+
+  const SPIN = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏";
+  const spinner = () => h("span", { class: "spin", "aria-hidden": "true" }, SPIN[0]);
+  const pad2 = (n) => String(n).padStart(2, "0");
+
+  function isoDate(t) {
+    if (!t) return "—";
+    const d = new Date(t);
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  }
+
+  function clock(ms) {
+    const s = Math.max(0, Math.ceil(ms / SEC));
+    const hours = Math.floor(s / 3600);
+    const mins = Math.floor((s % 3600) / 60);
+    return hours ? `${hours}:${pad2(mins)}:${pad2(s % 60)}` : `${pad2(mins)}:${pad2(s % 60)}`;
+  }
 
   const ui = {
     root: null,
@@ -1123,10 +1302,13 @@
     lockedElsewhere: false,
     filters: { scope: "main", q: "", age: 0, unread: false, untitled: false, marked: false, sort: "oldest" },
     sel: new Set(),
+    fresh: new Set(), // chats marked a moment ago, so only they animate
     anchor: null,
     focusId: null,
     readerId: null,
     reader: null, // { id, status: "loading" | "ok" | "error", error }
+    readerHead: null,
+    readerBody: null,
     order: [],
     rowEls: new Map(),
     drawer: null, // "activity" | "network" | null
@@ -1134,7 +1316,10 @@
     modalClose: null,
     runSig: "",
     runEls: null,
+    logSeen: 0,
     previewTimer: null,
+    closeTimer: null,
+    toastEl: null,
     toastTimer: null,
 
     onNetwork() {
@@ -1142,13 +1327,13 @@
     },
     onActivity() {
       if (ui.drawer === "activity") ui.renderDrawer();
-      if (ui.el.status && activity.length) ui.renderStatus();
+      if (ui.el.status) ui.renderStatus();
     },
     onCooldown() {
-      if (ui.booted) {
-        ui.renderBanners();
-        ui.renderLauncher();
-      }
+      if (!ui.booted) return;
+      ui.renderBanners();
+      ui.renderLauncher();
+      renderState();
     },
   };
 
@@ -1165,7 +1350,7 @@
     ui.host = host;
     ui.root = root;
 
-    ui.launcher = h("button", { class: "launcher", type: "button", title: "Open Triage (Alt+Shift+T)", onclick: () => ui.open() });
+    ui.launcher = h("button", { class: "launcher", type: "button", title: "Open Triage (Alt+Shift+T)", "aria-label": "Open Triage", onclick: () => ui.open() });
     ui.renderLauncher();
     root.append(ui.launcher, buildPanel());
     root.addEventListener("keydown", onKey);
@@ -1194,56 +1379,70 @@
     ui.root.classList.toggle("dark", dark);
   };
 
+  function iconBtn(name, title, onclick) {
+    return h("button", { class: "btn icon", type: "button", title, "aria-label": title, onclick }, icon(name, 16));
+  }
+
   function buildPanel() {
     const el = ui.el;
-    el.tabs = h("div", { class: "tabs", role: "tablist", "aria-label": "Which chats" });
+    el.tabBtns = h("div", { class: "tabbtns", role: "tablist", "aria-label": "Which chats" });
+    el.tabInd = h("span", { class: "tabind instant", "aria-hidden": "true" });
+    el.tabs = h("div", { class: "tabs" }, el.tabBtns, el.tabInd);
     el.queue = h("div", { class: "queue", "aria-live": "polite" });
-    el.refresh = h("button", { class: "btn icon", type: "button", title: "Reload the chat list", "aria-label": "Reload the chat list", onclick: () => reloadLists() }, icon("refresh"));
-    el.runBtn = h("button", { class: "btn primary", type: "button", onclick: () => confirmRun() }, "Run queue");
+    el.refresh = iconBtn("refresh", "Reload the chat list", () => reloadLists());
+    el.runBtn = h("button", { class: "btn primary", type: "button", onclick: () => confirmRun() }, "run queue");
     const top = h("div", { class: "top" },
-      h("div", { class: "brand" }, icon("logo", 18), h("span", null, "Triage"), h("span", { class: "ver" }, `v${VERSION}`)),
+      h("div", { class: "brand", title: `Triage ${VERSION}` }, h("span", { class: "word" }, "TRIAGE"), h("span", { class: "caret", "aria-hidden": "true" }), h("span", { class: "ver" }, `v${VERSION}`)),
       el.tabs,
       h("div", { class: "spacer" }),
       el.queue,
-      el.refresh,
-      h("button", { class: "btn icon", type: "button", title: "Settings", "aria-label": "Settings", onclick: () => openSettings() }, icon("sliders")),
-      h("button", { class: "btn icon", type: "button", title: "Help and shortcuts (?)", "aria-label": "Help and shortcuts", onclick: () => openHelp() }, icon("help")),
-      el.runBtn,
-      h("button", { class: "btn icon", type: "button", title: "Close. Your marks are saved.", "aria-label": "Close Triage", onclick: () => ui.close() }, icon("x")));
+      h("div", { class: "actions" },
+        el.refresh,
+        iconBtn("sliders", "Settings", () => openSettings()),
+        iconBtn("help", "Help and shortcuts (?)", () => openHelp()),
+        el.runBtn,
+        iconBtn("x", "Close. Your marks are saved.", () => ui.close())));
 
     el.banners = h("div", { class: "banners" });
 
     el.search = h("input", {
-      class: "search", type: "search", placeholder: "Search titles and opened chats", title: "Searches every title, plus the text of chats you've opened in Triage", "aria-label": "Search",
+      class: "search", type: "search", placeholder: "/  search titles and opened chats",
+      title: "Searches every title, plus the text of chats you've opened in Triage", "aria-label": "Search",
       oninput: (e) => {
         ui.filters.q = e.target.value;
         ui.renderList();
       },
     });
-    el.age = select([[0, "Any age"], [7 * DAY, "Older than a week"], [30 * DAY, "Older than a month"], [90 * DAY, "Older than 3 months"], [180 * DAY, "Older than 6 months"], [365 * DAY, "Older than a year"]], 0, (v) => {
+    el.age = select([[0, "any age"], [7 * DAY, "older than 1 week"], [30 * DAY, "older than 1 month"], [90 * DAY, "older than 3 months"], [180 * DAY, "older than 6 months"], [365 * DAY, "older than 1 year"]], 0, (v) => {
       ui.filters.age = Number(v);
       ui.renderList();
     }, "Age");
-    el.sort = select([["oldest", "Oldest first"], ["newest", "Newest first"], ["updated", "Recently used"]], "oldest", (v) => {
+    el.sort = select([["oldest", "oldest first"], ["newest", "newest first"], ["updated", "recently used"]], "oldest", (v) => {
       ui.filters.sort = v;
       ui.renderList();
     }, "Sort");
-    el.chips = h("div", { class: "chips" }, chip("unread", "Unread", "Only chats you haven't opened in Triage"), chip("untitled", "Untitled", "Only chats called “New chat” or with no title"), chip("marked", "Marked", "Only chats with a queued change"));
+    el.chips = h("div", { class: "chips" },
+      chip("unread", "unread", "Only chats you haven't opened in Triage"),
+      chip("untitled", "untitled", "Only chats called “New chat” or with no title"),
+      chip("marked", "marked", "Only chats with a queued change"));
     const tools = h("div", { class: "tools" }, el.search, el.age, el.sort, el.chips);
 
     el.listhead = h("div", { class: "listhead" });
-    el.list = h("div", { class: "list", tabindex: "0", role: "listbox", "aria-label": "Chats", onclick: onListClick });
+    el.cursor = h("div", { class: "cursor instant", "aria-hidden": "true" });
+    el.rows = h("div", { class: "rows" });
+    el.list = h("div", { class: "list", tabindex: "0", role: "listbox", "aria-label": "Chats", onclick: onListClick }, el.cursor, el.rows);
     el.left = h("div", { class: "left" }, tools, el.listhead, el.list);
     el.reader = h("div", { class: "reader" });
     el.runLayer = h("div", { class: "runlayer", hidden: true });
     el.main = h("div", { class: "main" }, el.left, el.reader, el.runLayer);
 
+    el.state = h("div", { class: "state" });
     el.status = h("div", { class: "status" });
-    el.activityBtn = h("button", { class: "btn small", type: "button", onclick: () => toggleDrawer("activity") }, "Activity");
-    el.networkBtn = h("button", { class: "btn small", type: "button", title: "Every request Triage has sent", onclick: () => toggleDrawer("network") }, "Network");
+    el.activityBtn = h("button", { class: "btn", type: "button", onclick: () => toggleDrawer("activity") }, "activity");
+    el.networkBtn = h("button", { class: "btn", type: "button", title: "Every request Triage has sent", onclick: () => toggleDrawer("network") }, "network");
     el.drawerEl = h("div", { class: "drawer", hidden: true });
-    const foot = h("div", { class: "foot" }, el.status, h("div", { class: "spacer" }), el.activityBtn, el.networkBtn,
-      h("a", { href: HOMEPAGE, target: "_blank", rel: "noopener noreferrer" }, "GitHub"));
+    const foot = h("div", { class: "foot" }, el.state, el.status,
+      h("div", { class: "links" }, el.activityBtn, el.networkBtn, h("a", { class: "btn", href: HOMEPAGE, target: "_blank", rel: "noopener noreferrer" }, "github ↗")));
 
     ui.panel = h("div", { class: "panel", hidden: true, tabindex: "-1", role: "dialog", "aria-label": "Triage" }, top, el.banners, el.main, el.drawerEl, foot);
     return ui.panel;
@@ -1267,11 +1466,18 @@
     return b;
   }
 
+  function check(input, label, help) {
+    input.classList.add("cb");
+    return h("label", { class: "check" }, input, h("div", null, h("div", { class: "t" }, label), help ? h("div", { class: "h" }, help) : null));
+  }
+
   // ---------------------------------------------------------------------------
   // Opening, closing, booting
   // ---------------------------------------------------------------------------
 
   ui.open = function open() {
+    clearTimeout(ui.closeTimer);
+    ui.panel.classList.remove("leaving");
     ui.panel.hidden = false;
     ui.launcher.hidden = true;
     ui.isOpen = true;
@@ -1282,15 +1488,20 @@
 
   ui.close = function close() {
     closeModal();
-    ui.panel.hidden = true;
-    ui.launcher.hidden = false;
     ui.isOpen = false;
+    ui.panel.classList.add("leaving");
+    clearTimeout(ui.closeTimer);
+    ui.closeTimer = setTimeout(() => {
+      ui.panel.hidden = true;
+      ui.panel.classList.remove("leaving");
+    }, 160);
+    ui.launcher.hidden = false;
     ui.renderLauncher();
   };
 
   async function boot() {
     ui.booted = true;
-    Data.loading = { scope: "active", n: 0, total: null, waiting: false, message: "Connecting to ChatGPT…" };
+    Data.loading = { scope: "active", n: 0, total: null, waiting: false, message: "Connecting to ChatGPT" };
     ui.renderAll();
     try {
       await Api.session();
@@ -1322,6 +1533,7 @@
         Data.loading = { scope: "active", n, total, waiting };
         ui.renderList();
         ui.renderTabs();
+        renderState();
       });
       Data.index();
       Data.loading = null;
@@ -1342,6 +1554,7 @@
       Data.archived = await loadList("archived", (n, total, waiting) => {
         Data.loading = { scope: "archived", n, total, waiting };
         ui.renderList();
+        renderState();
       });
       Data.archivedLoaded = true;
       Data.index();
@@ -1373,7 +1586,7 @@
     ui.renderBanners();
     ui.renderList();
     ui.renderReader();
-    ui.renderRun(true);
+    ui.renderRun();
     ui.renderStatus();
     ui.renderLauncher();
     if (ui.drawer) ui.renderDrawer();
@@ -1392,17 +1605,34 @@
   ui.renderTabs = function renderTabs() {
     const n = counts();
     const tabs = [
-      ["main", "Main", n.main, "Your regular chats. Project chats are left out so a cleanup can't empty a project by accident."],
-      ["projects", "Projects", n.projects, "Chats that live inside Projects"],
-      ["archived", "Archived", n.archived, "Chats you've archived. They load when you open this tab."],
-      ["all", "All", n.all, "Main and project chats together"],
+      ["main", n.main, "Your regular chats. Project chats are left out so a cleanup can't empty a project by accident."],
+      ["projects", n.projects, "Chats that live inside Projects"],
+      ["archived", n.archived, "Chats you've archived. They load when you open this tab."],
+      ["all", n.all, "Main and project chats together"],
     ];
-    ui.el.tabs.replaceChildren(...tabs.map(([key, label, count, title]) => h("button", {
+    ui.el.tabBtns.replaceChildren(...tabs.map(([key, count, title]) => h("button", {
       class: `tab${ui.filters.scope === key ? " on" : ""}`, type: "button", role: "tab", title,
       "aria-selected": String(ui.filters.scope === key),
       onclick: () => setScope(key),
-    }, label, h("span", { class: "n" }, count == null ? "" : String(count)))));
+    }, h("span", null, key), h("span", { class: "n" }, count == null ? "·" : String(count)))));
+    requestAnimationFrame(placeTabIndicator);
   };
+
+  // The underline glides to the active tab.
+  function placeTabIndicator() {
+    const ind = ui.el.tabInd;
+    const on = ui.el.tabBtns.querySelector(".tab.on");
+    if (!on || !on.offsetWidth) {
+      ind.style.opacity = "0";
+      return;
+    }
+    const first = ind.style.opacity !== "1";
+    ind.classList.toggle("instant", first);
+    ind.style.width = `${on.offsetWidth - 20}px`;
+    ind.style.transform = `translateX(${on.offsetLeft + 10}px)`;
+    ind.style.opacity = "1";
+    if (first) requestAnimationFrame(() => ind.classList.remove("instant"));
+  }
 
   function setScope(scope) {
     if (Runner.isActive()) return;
@@ -1417,10 +1647,10 @@
     const q = queueCounts();
     const parts = [];
     for (const a of ["delete", "archive", "unarchive", "rename"]) {
-      if (q[a]) parts.push(h("span", { class: `q-${a}` }, h("b", null, String(q[a])), ` to ${ACTION[a].label.toLowerCase()}`));
+      if (q[a]) parts.push(h("span", { class: `q-${a}` }, h("b", null, String(q[a])), ` ${ACTION[a].label.toLowerCase()}`));
     }
-    ui.el.queue.replaceChildren(...(parts.length ? parts : [h("span", null, "Nothing queued yet")]));
-    ui.el.runBtn.textContent = q.total ? `Run queue (${q.total})` : "Run queue";
+    ui.el.queue.replaceChildren(...(parts.length ? parts : [h("span", null, "queue empty")]));
+    ui.el.runBtn.replaceChildren(...["run queue", q.total ? h("span", { class: "count" }, String(q.total)) : null].filter(Boolean));
     ui.el.runBtn.disabled = !q.total || Runner.isActive() || Boolean(Store.data.run) || ui.lockedElsewhere || !Data.compatOk || Boolean(Data.loading);
     ui.el.refresh.disabled = Runner.isActive() || Boolean(Data.loading);
   };
@@ -1429,15 +1659,15 @@
     const out = [];
     const left = Api.cooldownLeft();
     if (left > 0 && !Runner.isActive()) {
-      out.push(h("div", { class: "banner warn", "data-kind": "cooldown" },
-        `ChatGPT asked Triage to slow down. Opening chats and running the queue will work again at ${fmtClock(Store.data.cooldownUntil)} (`,
-        h("span", { "data-countdown": "" }, fmtDuration(left)), ")."));
+      out.push(h("div", { class: "banner" }, h("span", { class: "lbl" }, "WAIT"),
+        h("span", null, `ChatGPT asked Triage to slow down. Reading and running resume at ${fmtClock(Store.data.cooldownUntil)}.`),
+        h("span", { class: "clock", "data-countdown": "" }, clock(left))));
     }
     if (ui.lockedElsewhere) {
-      out.push(h("div", { class: "banner warn" }, "Triage is running a queue in another tab. Use that tab, or close it and reload this one."));
+      out.push(h("div", { class: "banner" }, h("span", { class: "lbl" }, "BUSY"), h("span", null, "Triage is running a queue in another tab. Use that tab, or close it and reload this one.")));
     }
     if (!Data.compatOk) {
-      out.push(h("div", { class: "banner bad" }, "ChatGPT's data looks different from what Triage expects, so changes are switched off. Reading still works. Check GitHub for an update."));
+      out.push(h("div", { class: "banner bad" }, h("span", { class: "lbl" }, "OFF"), h("span", null, "ChatGPT's data looks different from what Triage expects, so changes are switched off. Reading still works. Check GitHub for an update.")));
     }
     ui.el.banners.replaceChildren(...out);
   };
@@ -1475,31 +1705,35 @@
 
   ui.renderList = function renderList() {
     const el = ui.el;
+    ui.rowEls = new Map();
     if (ui.fatal) {
+      ui.order = [];
       el.listhead.replaceChildren();
-      el.list.replaceChildren(h("div", { class: "loadmsg" }, ui.fatal, h("div", { style: "margin-top:12px" }, h("button", { class: "btn", type: "button", onclick: () => retryBoot() }, "Try again"))));
+      el.rows.replaceChildren(h("div", { class: "note" }, h("div", null, ui.fatal), h("button", { class: "btn", type: "button", onclick: () => retryBoot() }, "try again")));
+      placeCursor(false);
       return;
     }
-    const loadingHere = Data.loading && (Data.loading.scope === "archived") === (ui.filters.scope === "archived");
+    const L = Data.loading;
+    const loadingHere = L && (L.scope === "archived") === (ui.filters.scope === "archived");
     const rows = visibleChats();
     ui.order = rows.map((c) => c.id);
-    ui.rowEls = new Map();
 
     if (loadingHere && !rows.length) {
-      const L = Data.loading;
       el.listhead.replaceChildren();
       const text = L.message || (L.waiting
-        ? `ChatGPT asked Triage to slow down while loading. Carrying on at ${fmtClock(Store.data.cooldownUntil)}. ${L.n} loaded so far.`
-        : `Loading your chats… ${L.n}${L.total ? ` of about ${L.total}` : ""}`);
-      el.list.replaceChildren(h("div", { class: "loadmsg" }, text));
+        ? `ChatGPT asked Triage to slow down. Carrying on at ${fmtClock(Store.data.cooldownUntil)}.`
+        : `loading chats  ${L.n}${L.total ? ` / ~${L.total}` : ""}`);
+      el.rows.replaceChildren(h("div", { class: "note" }, spinner(), text));
+      placeCursor(false);
       return;
     }
 
     renderListHead(rows);
     if (!rows.length) {
       const filtered = ui.filters.q || ui.filters.age || ui.filters.unread || ui.filters.untitled || ui.filters.marked;
-      el.list.replaceChildren(h("div", { class: "loadmsg" }, filtered ? "No chats match these filters." : "No chats here.",
-        filtered ? h("div", { style: "margin-top:12px" }, h("button", { class: "btn", type: "button", onclick: clearFilters }, "Clear filters")) : null));
+      el.rows.replaceChildren(h("div", { class: "note" }, h("div", null, filtered ? "No chats match these filters." : "No chats here."),
+        filtered ? h("button", { class: "btn", type: "button", onclick: clearFilters }, "clear filters") : null));
+      placeCursor(false);
       return;
     }
     const frag = document.createDocumentFragment();
@@ -1508,9 +1742,13 @@
       ui.rowEls.set(c.id, row);
       frag.append(row);
     }
-    if (loadingHere) frag.append(h("div", { class: "loadmsg" }, Data.loading.waiting ? "Waiting for ChatGPT before loading the rest…" : `Loading more… ${Data.loading.n}${Data.loading.total ? ` of about ${Data.loading.total}` : ""}`));
-    el.list.replaceChildren(frag);
+    if (loadingHere) {
+      frag.append(h("div", { class: "note" }, spinner(), L.waiting ? "waiting for ChatGPT" : `loading  ${L.n}${L.total ? ` / ~${L.total}` : ""}`));
+    }
+    el.rows.replaceChildren(frag);
     if (ui.focusId && !ui.rowEls.has(ui.focusId)) ui.focusId = null;
+    ui.fresh.clear();
+    placeCursor(false);
     ui.renderStatus();
   };
 
@@ -1528,51 +1766,54 @@
     const parts = [all, h("span", null, plural(rows.length, "chat"))];
     if (ui.sel.size) {
       const archivedScope = ui.filters.scope === "archived";
-      parts.push(h("b", null, `· ${ui.sel.size} selected`), h("span", { class: "grow" }),
+      parts.push(h("b", null, `${ui.sel.size} selected`), h("span", { class: "grow" }),
         bulkBtn("delete"),
         archivedScope ? bulkBtn("unarchive") : bulkBtn("archive"),
-        h("button", { class: "btn small", type: "button", title: "Protect the selected chats (P)", onclick: () => applyAction("protect", selectedChats()) }, icon("shield", 14), "Protect"),
-        h("button", { class: "btn small", type: "button", title: "Remove queued changes from the selected chats (C)", onclick: () => applyAction("clear", selectedChats()) }, "Clear marks"),
-        h("button", { class: "btn small", type: "button", title: "Select the shown chats that aren't selected", onclick: invertSelection }, "Invert"),
-        h("button", { class: "btn small", type: "button", onclick: () => { ui.sel.clear(); ui.renderList(); } }, "Select none"));
+        h("button", { class: "btn small", type: "button", title: "Protect the selected chats (P)", onclick: () => applyAction("protect", selectedChats()) }, "protect"),
+        h("button", { class: "btn small", type: "button", title: "Remove queued changes from the selected chats (C)", onclick: () => applyAction("clear", selectedChats()) }, "clear"),
+        h("button", { class: "btn small ghost", type: "button", title: "Select the shown chats that aren't selected", onclick: invertSelection }, "invert"),
+        h("button", { class: "btn small ghost", type: "button", onclick: () => { ui.sel.clear(); ui.renderList(); } }, "none"));
     } else {
-      parts.push(h("span", { class: "grow" }), h("span", { class: "hint" }, "Click to read · Shift-click to select a range · ? for shortcuts"));
+      parts.push(h("span", { class: "grow" }), h("span", null, "click to read · shift-click for a range · ? for keys"));
     }
     ui.el.listhead.replaceChildren(...parts);
   }
 
   function bulkBtn(action) {
     const a = ACTION[action];
-    return h("button", { class: `btn small t-${action}`, type: "button", title: `${a.label} the selected chats (${a.key})`, onclick: () => applyAction(action, selectedChats()) }, icon(a.icon, 14), a.label);
+    return h("button", { class: `btn small t-${action}${action === "delete" ? " danger" : ""}`, type: "button", title: `${a.label} the selected chats (${a.key})`, onclick: () => applyAction(action, selectedChats()) }, a.label.toLowerCase());
   }
 
   function rowEl(c) {
     const d = Store.data;
     const mark = d.marks[c.id];
     const prot = Boolean(d.protect[c.id]);
+    const fresh = ui.fresh.has(c.id);
     const cls = ["row"];
     if (c.id === ui.focusId) cls.push("focus");
     if (ui.sel.has(c.id)) cls.push("sel");
     if (d.seen[c.id]) cls.push("seen");
     if (mark) cls.push(`m-${mark.a}`);
+    if (fresh) cls.push("fresh");
     const badges = [];
-    if (c.pinned) badges.push(h("span", { class: "badge", title: "Pinned" }, icon("pin", 11), "Pinned"));
-    if (prot) badges.push(h("span", { class: "badge prot", title: "Protected: Triage won't change this chat" }, icon("shield", 11), "Protected"));
-    if (c.projectId && ui.filters.scope !== "projects") badges.push(h("span", { class: "badge" }, "Project"));
-    if (c.gptId) badges.push(h("span", { class: "badge", title: "Chat with a custom GPT" }, "GPT"));
+    if (c.pinned) badges.push(h("span", { class: "badge", title: "Pinned" }, "pinned"));
+    if (c.projectId && ui.filters.scope !== "projects") badges.push(h("span", { class: "badge", title: "In a project" }, "project"));
+    if (c.gptId) badges.push(h("span", { class: "badge", title: "Chat with a custom GPT" }, "gpt"));
     const cb = h("input", { type: "checkbox", class: "cb", tabindex: "-1", "aria-label": "Select", disabled: prot });
     cb.checked = ui.sel.has(c.id);
-    const tag = mark ? h("span", { class: `tag ${mark.a}`, title: mark.a === "rename" ? `Rename to ${quote(mark.t)}` : "" },
-      mark.a === "rename" ? `Rename → ${mark.t}` : ACTION[mark.a].label) : null;
+    let tag = null;
+    if (prot) tag = h("span", { class: `tag prot${fresh ? " fresh" : ""}`, title: "Protected: Triage won't change this chat" }, "protected");
+    else if (mark && mark.a === "rename") tag = h("span", { class: `tag rename${fresh ? " fresh" : ""}`, title: `Rename to ${quote(mark.t)}` }, "rename → ", h("span", { class: "v" }, mark.t));
+    else if (mark) tag = h("span", { class: `tag ${mark.a}${fresh ? " fresh" : ""}` }, ACTION[mark.a].label);
     const acts = h("span", { class: "acts" },
-      miniBtn(c.archived ? "unarchive" : "archive", mark && mark.a === (c.archived ? "unarchive" : "archive")),
-      miniBtn("delete", mark && mark.a === "delete"),
-      miniBtn("rename", mark && mark.a === "rename"),
+      miniBtn(c.archived ? "unarchive" : "archive", Boolean(mark && mark.a === (c.archived ? "unarchive" : "archive"))),
+      miniBtn("delete", Boolean(mark && mark.a === "delete")),
+      miniBtn("rename", Boolean(mark && mark.a === "rename")),
       miniBtn("protect", prot));
     return h("div", { class: cls.join(" "), "data-id": c.id, role: "option", "aria-selected": String(c.id === ui.focusId) },
       cb,
-      h("span", { class: "date", title: c.created ? new Date(c.created).toLocaleString() : "" }, fmtDate(c.created)),
-      h("span", { class: "title", title: c.title || "Untitled" }, badges, c.title || "Untitled"),
+      h("span", { class: "date", title: c.created ? new Date(c.created).toLocaleString() : "" }, isoDate(c.created)),
+      h("span", { class: "title", title: c.title || "Untitled" }, badges, h("span", { class: "t" }, c.title || "Untitled")),
       h("span", { class: "end" }, tag, acts));
   }
 
@@ -1582,18 +1823,44 @@
     return h("button", { class: `mini${on ? " on" : ""}`, type: "button", tabindex: "-1", "data-act": action, title: `${label} (${a.key})`, "aria-label": label }, icon(a.icon, 15));
   }
 
+  // The inverted bar that glides to the focused chat.
+  function placeCursor(animate) {
+    const cur = ui.el.cursor;
+    if (!cur) return;
+    const row = ui.focusId ? ui.rowEls.get(ui.focusId) : null;
+    if (!row || !row.offsetHeight) {
+      cur.style.opacity = "0";
+      return;
+    }
+    const snap = !animate || cur.style.opacity !== "1";
+    cur.classList.toggle("instant", snap);
+    cur.style.transform = `translateY(${row.offsetTop + ui.el.rows.offsetTop}px)`;
+    cur.style.height = `${row.offsetHeight}px`;
+    cur.style.opacity = "1";
+    if (snap) requestAnimationFrame(() => cur.classList.remove("instant"));
+  }
+
+  function idleLegend() {
+    const pair = (k, label) => [h("span", { class: "kbd" }, k), h("span", { class: "l" }, label)];
+    const any = Data.active.length || Data.archived.length;
+    return h("div", { class: "idle" }, h("div", { class: "legend" },
+      h("div", { class: "h" }, any ? "Pick a chat to read it here" : "Your chats will show up here"),
+      h("div", { class: "grid" },
+        pair("↑ ↓", "move"), pair("d", "delete"),
+        pair("⏎", "read"), pair("a", "archive"),
+        pair("space", "select"), pair("r", "rename"),
+        pair("/", "search"), pair("p", "protect")),
+      h("div", { class: "f" }, "Nothing changes in ChatGPT until you run the queue.")));
+  }
+
   ui.renderReader = function renderReader() {
     const box = ui.el.reader;
     const c = ui.readerId ? Data.byId.get(ui.readerId) : null;
     if (!c) {
-      box.replaceChildren(h("div", { class: "empty" }, h("div", null,
-        h("div", { class: "big" }, Data.active.length || Data.archived.length ? "Pick a chat to read it here." : "Your chats will show up here."),
-        h("div", { class: "small" },
-          "Move with ", h("span", { class: "kbd" }, "↑"), " ", h("span", { class: "kbd" }, "↓"),
-          ". Mark with ", h("span", { class: "kbd" }, "D"), " delete, ", h("span", { class: "kbd" }, "A"), " archive, ",
-          h("span", { class: "kbd" }, "R"), " rename, ", h("span", { class: "kbd" }, "P"), " protect.", h("br"),
-          "Nothing changes in ChatGPT until you press Run queue.", h("br"),
-          "Press ", h("span", { class: "kbd" }, "?"), " for every shortcut."))));
+      const key = `idle:${Data.active.length || Data.archived.length ? 1 : 0}`;
+      if (ui.readerBody !== key) box.replaceChildren(idleLegend());
+      ui.readerHead = null;
+      ui.readerBody = key;
       return;
     }
     const d = Store.data;
@@ -1601,84 +1868,129 @@
     const prot = Boolean(d.protect[c.id]);
     const conv = cache.get(c.id);
     const meta = [
-      `Created ${fmtDate(c.created, true)}`,
-      c.updated ? `last used ${fmtDate(c.updated, true)}` : null,
+      isoDate(c.created),
+      c.updated ? `last used ${isoDate(c.updated)}` : null,
       conv ? plural(conv.messages.length, "message") : null,
-      c.projectId ? "in a project" : null,
-      c.gptId ? "custom GPT" : null,
+      c.projectId ? "project" : null,
+      c.gptId ? "custom gpt" : null,
       c.pinned ? "pinned" : null,
       c.archived ? "archived" : null,
-    ].filter(Boolean).join(" · ");
+    ].filter(Boolean);
+
     let state = null;
-    if (prot) state = h("div", { class: "rstate protect" }, "Protected. Triage won't change this chat.");
-    else if (mark) state = h("div", { class: `rstate ${mark.a}` }, mark.a === "rename" ? `Queued: rename to ${quote(mark.t)}` : `Queued: ${ACTION[mark.a].label.toLowerCase()}`, mark.a === "delete" ? ". Deleting can't be undone." : ".");
+    if (prot) state = h("div", { class: "rstate" }, "protected · Triage won't change this chat");
+    else if (mark && mark.a === "rename") state = h("div", { class: "rstate" }, "queued · rename → ", h("span", { class: "v" }, mark.t));
+    else if (mark) state = h("div", { class: `rstate ${mark.a}` }, `queued · ${ACTION[mark.a].label}${mark.a === "delete" ? " · can't be undone" : ""}`);
 
     const actionBtn = (action) => {
       const a = ACTION[action];
-      const on = action === "protect" ? prot : mark && mark.a === action;
-      const label = action === "protect" ? (prot ? "Unprotect" : "Protect") : on ? `Unmark ${a.label.toLowerCase()}` : a.label;
-      return h("button", { class: `btn small t-${action}${on ? " on" : ""}`, type: "button", title: `${label} (${a.key})`, onclick: () => applyAction(action, [c]) },
-        icon(a.icon, 14), label, h("span", { class: "kbd" }, a.key));
+      const on = action === "protect" ? prot : Boolean(mark && mark.a === action);
+      const label = action === "protect" ? (prot ? "unprotect" : "protect") : on ? `unmark ${a.label.toLowerCase()}` : a.label.toLowerCase();
+      return h("button", { class: `btn${on ? " on" : ""}${action === "delete" ? " danger" : ""}`, type: "button", title: `${label} (${a.key})`, onclick: () => applyAction(action, [c]) },
+        h("span", { class: "k" }, a.key.toLowerCase()), label);
     };
     const open = TEST.demo
-      ? h("button", { class: "btn small", type: "button", onclick: () => ui.toast("In the demo, chats don't open in ChatGPT.") }, icon("external", 14), "Open in ChatGPT")
-      : h("a", { class: "btn small", href: `/c/${encodeURIComponent(c.id)}`, target: "_blank", rel: "noopener noreferrer" }, icon("external", 14), "Open in ChatGPT");
-    const head = h("div", { class: "rhead" },
+      ? h("button", { class: "btn ghost", type: "button", onclick: () => ui.toast("In the demo, chats don't open in ChatGPT.") }, "open in chatgpt ↗")
+      : h("a", { class: "btn ghost", href: `/c/${encodeURIComponent(c.id)}`, target: "_blank", rel: "noopener noreferrer" }, "open in chatgpt ↗");
+    const switched = ui.readerHead !== c.id;
+    ui.readerHead = c.id;
+    const head = h("div", { class: `rhead${switched ? " fresh" : ""}` },
       h("h2", { class: "rtitle" }, c.title || "Untitled"),
-      h("div", { class: "rmeta" }, meta),
+      h("div", { class: "rmeta" }, meta.map((m) => h("span", null, m))),
       state,
       h("div", { class: "ractions" },
         actionBtn("delete"), c.archived ? actionBtn("unarchive") : actionBtn("archive"), actionBtn("rename"), actionBtn("protect"), open));
 
-    let body;
+    // Only rebuild the conversation when it's a different chat or it just arrived, so marking doesn't make it jump.
     const rs = ui.reader && ui.reader.id === c.id ? ui.reader : null;
-    if (conv) {
-      body = conv.messages.length
-        ? conv.messages.map((m) => h("div", { class: `msg ${m.role}` }, h("div", { class: "who" }, m.role === "user" ? "You" : "ChatGPT"), h("div", { class: "txt" }, m.text)))
-        : h("div", { class: "empty" }, "This chat has no text messages to show.");
-    } else if (rs && rs.status === "error") {
-      const e = rs.error || {};
-      const text = e.kind === "cooldown" || e.kind === "ratelimit"
-        ? `ChatGPT asked Triage to slow down. You can read chats again at ${fmtClock(Store.data.cooldownUntil)}.`
-        : e.kind === "notfound" ? "This chat doesn't exist in ChatGPT any more." : `Couldn't load this chat. ${e.message || ""}`;
-      body = h("div", { class: "empty" }, h("div", null, h("div", null, text), e.kind === "notfound" ? null : h("div", { style: "margin-top:12px" }, h("button", { class: "btn", type: "button", onclick: () => openReader(c.id, true) }, "Try again"))));
-    } else {
-      body = h("div", { class: "empty" }, "Loading chat…");
+    const bodyKey = conv ? `ok:${c.id}` : rs && rs.status === "error" ? `err:${c.id}:${rs.error && rs.error.kind}` : `load:${c.id}`;
+    const oldBody = box.querySelector(".msgs");
+    const oldHead = box.querySelector(".rhead");
+    if (ui.readerBody === bodyKey && oldBody && oldHead) {
+      oldHead.replaceWith(head);
+      return;
     }
-    box.replaceChildren(head, h("div", { class: "msgs" }, body));
+    let body;
+    {
+      if (conv) {
+        body = h("div", { class: "msgs enter" }, conv.messages.length
+          ? conv.messages.map((m, i) => {
+            const msg = h("div", { class: `msg ${m.role}` }, h("div", { class: "who" }, m.role === "user" ? "you" : "chatgpt"), h("div", { class: "txt" }, m.text));
+            msg.style.animationDelay = `${Math.min(i, 6) * 40}ms`;
+            return msg;
+          })
+          : h("div", { class: "note" }, "This chat has no text messages to show."));
+        const entering = body;
+        setTimeout(() => entering.classList.remove("enter"), 900);
+      } else if (rs && rs.status === "error") {
+        const e = rs.error || {};
+        const text = e.kind === "cooldown" || e.kind === "ratelimit"
+          ? `ChatGPT asked Triage to slow down. You can read chats again at ${fmtClock(Store.data.cooldownUntil)}.`
+          : e.kind === "notfound" ? "This chat doesn't exist in ChatGPT any more." : `Couldn't load this chat. ${e.message || ""}`;
+        body = h("div", { class: "msgs" }, h("div", { class: "note" }, h("div", null, text),
+          e.kind === "notfound" ? null : h("button", { class: "btn", type: "button", onclick: () => openReader(c.id, true) }, "try again")));
+      } else {
+        body = h("div", { class: "msgs" }, h("div", { class: "note" }, spinner(), "loading chat"));
+      }
+      ui.readerBody = bodyKey;
+    }
+    box.replaceChildren(head, body);
   };
+
+  function renderState() {
+    const el = ui.el.state;
+    if (!el) return;
+    const r = ui.booted ? Store.data.run : null;
+    let cls = "";
+    let text = "ready";
+    if (ui.fatal) {
+      cls = "bad";
+      text = "error";
+    } else if (Data.loading) {
+      cls = "busy";
+      text = Data.loading.waiting ? `waiting ${clock(Api.cooldownLeft())}` : `loading ${Data.loading.n}${Data.loading.total ? `/${Data.loading.total}` : ""}`;
+    } else if (r && ACTIVE.includes(r.status)) {
+      cls = "busy";
+      text = { waiting: `waiting ${clock(Api.cooldownLeft())}`, backup: "backing up", verifying: "checking" }[r.status] || `running ${r.i}/${r.jobs.length}`;
+    } else if (r && r.status === "paused") {
+      text = "paused";
+    } else if (Api.cooldownLeft() > 0) {
+      text = `waiting ${clock(Api.cooldownLeft())}`;
+    }
+    el.className = `state${cls ? ` ${cls}` : ""}`;
+    el.replaceChildren(h("span", { class: "dot" }), text);
+  }
 
   ui.renderStatus = function renderStatus() {
     if (!ui.el.status) return;
+    renderState();
     const d = Store.data;
     const bits = [];
     if (Data.active.length || Data.archived.length) {
-      bits.push(`Showing ${ui.order.length}`);
-      const read = Object.keys(d.seen).filter((id) => Data.byId.has(id)).length;
-      bits.push(`${read} read`);
+      bits.push(`${ui.order.length} shown`);
+      bits.push(`${Object.keys(d.seen).filter((id) => Data.byId.has(id)).length} read`);
       const prot = Object.keys(d.protect).length;
       if (prot) bits.push(`${prot} protected`);
     }
     const last = activity[activity.length - 1];
     if (last) bits.push(last.message);
-    ui.el.status.textContent = bits.join(" · ");
+    ui.el.status.textContent = bits.join("  ·  ");
   };
 
   ui.renderLauncher = function renderLauncher() {
     if (!ui.launcher) return;
     const r = ui.booted ? Store.data.run : null;
-    let text = "Triage";
-    let dot = null;
+    let info = null;
+    let live = false;
     if (r && ACTIVE.includes(r.status)) {
-      dot = r.status === "waiting" ? "wait" : "go";
-      text = r.status === "waiting" ? `Triage · waiting ${fmtDuration(Api.cooldownLeft())}` : `Triage · ${r.i} of ${r.jobs.length}`;
+      live = true;
+      info = r.status === "waiting" ? `wait ${clock(Api.cooldownLeft())}` : `${r.i}/${r.jobs.length}`;
     } else if (r && r.status === "paused") {
-      text = "Triage · paused";
-      dot = "wait";
+      info = "paused";
     } else if (r) {
-      text = "Triage · finished";
+      info = "done";
     }
-    ui.launcher.replaceChildren(dot ? h("span", { class: `dot${dot === "wait" ? " wait" : ""}` }) : icon("logo", 15), text);
+    ui.launcher.replaceChildren(...[h("span", { class: `dot${live ? " live" : ""}` }), h("span", { class: "word" }, "TRIAGE"), info ? h("span", { class: "info" }, info) : null].filter(Boolean));
   };
 
   ui.renderDrawer = function renderDrawer() {
@@ -1687,7 +1999,7 @@
     el.activityBtn.classList.toggle("on", ui.drawer === "activity");
     el.networkBtn.classList.toggle("on", ui.drawer === "network");
     if (!ui.drawer) return;
-    const time = (t) => new Date(t).toLocaleTimeString();
+    const time = (t) => new Date(t).toLocaleTimeString([], { hour12: false });
     let lines;
     if (ui.drawer === "network") {
       lines = [h("div", { class: "head" }, "Every request Triage has sent. They all go to chatgpt.com. Your sign-in token is never shown or stored.")];
@@ -1708,8 +2020,8 @@
     ui.renderDrawer();
   }
 
-  // The panel that covers everything while the queue runs.
-  ui.renderRun = function renderRun(force) {
+  // The card that covers the workspace while the queue runs.
+  ui.renderRun = function renderRun() {
     const el = ui.el;
     if (!el.runLayer) return;
     const r = ui.booted ? Store.data.run : null;
@@ -1721,6 +2033,7 @@
     if (!r) {
       ui.runSig = "";
       ui.runEls = null;
+      ui.logSeen = 0;
       return;
     }
     if (ui.lockedElsewhere) {
@@ -1728,14 +2041,15 @@
         ui.runSig = "elsewhere";
         ui.runEls = null;
         el.runLayer.replaceChildren(h("div", { class: "card" },
-          h("h2", null, "Running in another tab"),
-          h("div", { class: "sub" }, "Triage is working through a queue in another ChatGPT tab. Only one tab can run the queue at a time."),
-          h("div", { class: "btns" }, h("button", { class: "btn", type: "button", onclick: recheckOtherTab }, "Check again"))));
+          h("div", { class: "head" }, h("div", { class: "state" }, "BUSY")),
+          h("div", { class: "bar" }, h("i")),
+          h("div", { class: "explain" }, "Triage is working through a queue in another ChatGPT tab. Only one tab can run the queue at a time."),
+          h("div", { class: "btns" }, h("button", { class: "btn", type: "button", onclick: recheckOtherTab }, "check again"))));
       }
       return;
     }
-    // Rebuild the card only when something meaningful changed, so buttons stay clickable.
-    const sig = [r.status, r.i, r.results.length, r.note, r.current, r.nextAt ? 1 : 0, force === "rebuild" ? now() : 0].join("|");
+    // Rebuild only when something meaningful changed, so buttons stay clickable between ticks.
+    const sig = [r.status, r.i, r.results.length, r.note, r.current, r.nextAt ? 1 : 0].join("|");
     if (sig === ui.runSig && ui.runEls) {
       tickRun();
       return;
@@ -1746,79 +2060,95 @@
     const done = r.results.filter((x) => x.status === "done").length;
     const failed = r.results.filter((x) => x.status === "failed").length;
     const unconfirmed = r.results.filter((x) => x.status === "unconfirmed").length;
+    const live = ACTIVE.includes(r.status);
     const job = r.current ? r.jobs.find((j) => j.id === r.current) : null;
-    const title = {
-      backup: "Backing up before deleting",
-      running: "Working through your queue",
-      waiting: "Waiting for ChatGPT",
-      verifying: "Double-checking",
-      paused: "Paused",
-      done: failed || unconfirmed ? "Finished, with a few problems" : "All done",
-      stopped: "Stopped",
-    }[r.status] || "Queue";
+    const label = {
+      backup: "BACKING UP", running: "RUNNING", waiting: "WAITING", verifying: "CHECKING", paused: "PAUSED",
+      done: failed || unconfirmed ? "DONE · NEEDS A LOOK" : "DONE", stopped: "STOPPED",
+    }[r.status] || "QUEUE";
+    const width = String(total).length;
 
-    let line = "";
-    if (r.status === "backup") line = r.note;
-    else if ((r.status === "running" || r.status === "waiting") && job) {
-      const a = ACTION[job.action];
-      line = r.nextAt || r.status === "waiting" ? `Next: ${a.label.toLowerCase()} ${quote(job.title)}` : `${a.verb} ${quote(job.title)}`;
-      if (job.action === "rename") line += ` → ${quote(job.newTitle)}`;
-    } else if (r.status === "verifying") line = r.note || "Double-checking with ChatGPT.";
-    else if (r.status === "paused") line = `Paused at ${r.i} of ${total}. Nothing else changes until you resume.`;
-    else if (r.status === "done" || r.status === "stopped") line = `${plural(done, "change")} made.`;
-
-    const sub = h("div", { class: "sub" });
     const bar = h("i");
     bar.style.width = `${total ? Math.round((r.i / total) * 100) : 0}%`;
-    const countBits = [h("span", null, `${r.i} of ${total}`), h("span", null, `${done} done`)];
-    if (failed) countBits.push(h("span", { style: "color:var(--danger)" }, `${failed} failed`));
-    if (unconfirmed) countBits.push(h("span", { style: "color:var(--amber)" }, `${unconfirmed} not confirmed`));
+    const parts = [
+      h("div", { class: "head" },
+        h("div", { class: `state${(r.status === "done" && (failed || unconfirmed)) ? " bad" : ""}` }, live ? spinner() : null, label),
+        h("div", { class: "frac" }, h("b", null, String(r.i).padStart(width, "0")), ` / ${total}`)),
+      h("div", { class: "bar" }, bar),
+    ];
 
-    const btns = [];
-    if (ACTIVE.includes(r.status)) {
-      btns.push(h("button", { class: "btn", type: "button", onclick: () => Runner.pause() }, "Pause"));
-      btns.push(h("button", { class: "btn", type: "button", onclick: () => Runner.stop() }, "Stop"));
+    const sub = h("div", { class: "sub" });
+    let big = null;
+    const nowLine = (verb, title, extra) => h("div", { class: "now" }, h("span", { class: "v" }, verb), h("span", { class: "ttl" }, title, extra || null));
+    if (r.status === "waiting") {
+      big = h("div", { class: "big" }, clock(Api.cooldownLeft()));
+      parts.push(big, h("div", { class: "explain" }, `ChatGPT asked Triage to slow down. It carries on by itself at ${fmtClock(Store.data.cooldownUntil)}.`));
+      if (job) parts.push(h("div", { style: "height:14px" }), nowLine(`next ${job.action}`, job.title || "Untitled", job.action === "rename" ? ` → ${job.newTitle}` : null));
+    } else if (r.status === "backup") {
+      parts.push(nowLine("reading", (job && job.title) || "…"), sub);
+      sub.textContent = r.note;
+    } else if (r.status === "running" && job) {
+      const a = ACTION[job.action];
+      parts.push(nowLine(r.nextAt ? `next ${job.action}` : a.verb, job.title || "Untitled", job.action === "rename" ? ` → ${job.newTitle}` : null), sub);
+    } else if (r.status === "verifying") {
+      parts.push(nowLine("checking", "your chat list"), sub);
+      sub.textContent = r.note;
     } else if (r.status === "paused") {
-      btns.push(h("button", { class: "btn primary", type: "button", disabled: ui.lockedElsewhere, onclick: () => Runner.resume() }, "Resume"));
-      btns.push(h("button", { class: "btn", type: "button", onclick: () => Runner.stop() }, "Stop"));
-    } else {
-      btns.push(h("button", { class: "btn", type: "button", onclick: downloadReport }, icon("download", 14), "Report (CSV)"));
-      if (Runner.backup.length) btns.push(h("button", { class: "btn", type: "button", onclick: () => download(`chatgpt-triage-backup-${fileStamp()}.json`, JSON.stringify(Runner.backup, null, 2), "application/json") }, icon("download", 14), "Backup (JSON)"));
-      btns.push(h("button", { class: "btn primary", type: "button", onclick: () => Runner.dismiss() }, "Close"));
+      parts.push(h("div", { class: "explain" }, r.note || "Nothing else changes until you resume."));
+    } else if (r.status === "done" || r.status === "stopped") {
+      const bits = [`${plural(done, "change")} made`];
+      if (failed) bits.push(`${failed} failed`);
+      if (unconfirmed) bits.push(`${unconfirmed} didn't stick and are marked again`);
+      if (r.status === "stopped" && r.i < total) bits.push(`${total - r.i} not reached, still marked`);
+      parts.push(h("div", { class: "explain" }, `${bits.join(". ")}.`));
     }
 
+    // A terminal-style log: newest last. Finished runs list only what needs attention.
+    const finished = r.status === "done" || r.status === "stopped" || r.status === "paused";
     const issues = r.results.filter((x) => x.status !== "done");
-    const issueBox = (r.status === "done" || r.status === "stopped" || r.status === "paused") && issues.length
-      ? h("div", { class: "issues" }, issues.slice(-60).map((x) => h("div", null, h("b", null, `${ACTION[x.action].label} ${quote(x.title)}: `), x.note || x.status)))
-      : null;
-    const tip = ACTIVE.includes(r.status)
-      ? h("div", { class: "tip" }, "Keep this tab open. You can close this panel and keep using ChatGPT; the button in the corner shows progress. Other ChatGPT tabs and the desktop app share the same limit, so close them if you can.")
-      : r.status === "paused" && r.note ? h("div", { class: "tip" }, r.note) : null;
+    const items = finished && issues.length ? issues.slice(-40) : r.results.slice(-6);
+    if (items.length) {
+      const glyph = { done: "✓", failed: "✕", unconfirmed: "~" };
+      const log = h("div", { class: "log" }, items.map((x, i) => {
+        const isNew = r.results.length > ui.logSeen && i === items.length - 1 && !finished;
+        const bad = x.status !== "done";
+        return h("div", { class: `${bad ? "bad" : ""}${isNew ? " new" : ""}` },
+          h("span", { class: "g" }, glyph[x.status] || "·"),
+          h("span", { class: "v" }, x.note === "It was already gone." ? "gone" : ACTION[x.action].past),
+          h("span", { class: "ttl" }, x.title || "Untitled", x.action === "rename" && x.newTitle ? ` → ${x.newTitle}` : ""),
+          bad && x.note ? h("span", { class: "why" }, x.note) : null);
+      }));
+      parts.push(log);
+      ui.logSeen = r.results.length;
+    }
 
-    const card = h("div", { class: "card", role: "status", "aria-live": "polite" },
-      h("h2", null, title), h("div", { class: "line" }, line), sub,
-      h("div", { class: "progress" }, bar), h("div", { class: "counts" }, countBits), issueBox,
-      h("div", { class: "btns" }, btns), tip);
-    el.runLayer.replaceChildren(card);
-    ui.runEls = { sub, r };
+    const btns = [];
+    if (live) {
+      btns.push(h("button", { class: "btn", type: "button", onclick: () => Runner.pause() }, "pause"));
+      btns.push(h("button", { class: "btn ghost", type: "button", onclick: () => Runner.stop() }, "stop"));
+    } else if (r.status === "paused") {
+      btns.push(h("button", { class: "btn primary", type: "button", disabled: ui.lockedElsewhere, onclick: () => Runner.resume() }, "resume"));
+      btns.push(h("button", { class: "btn ghost", type: "button", onclick: () => Runner.stop() }, "stop"));
+    } else {
+      btns.push(h("button", { class: "btn primary", type: "button", onclick: () => Runner.dismiss() }, "close"));
+      btns.push(h("button", { class: "btn", type: "button", onclick: downloadReport }, "report.csv"));
+      if (Runner.backup.length) btns.push(h("button", { class: "btn", type: "button", onclick: () => download(`chatgpt-triage-backup-${fileStamp()}.json`, JSON.stringify(Runner.backup, null, 2), "application/json") }, "backup.json"));
+    }
+    parts.push(h("div", { class: "btns" }, btns));
+    if (live) parts.push(h("div", { class: "tip" }, "Keep this tab open. You can close this panel and keep using ChatGPT; the button in the corner shows progress. Other ChatGPT tabs and the desktop app share the same limit, so close them if you can."));
+
+    el.runLayer.replaceChildren(h("div", { class: "card", role: "status", "aria-live": "polite" }, parts));
+    ui.runEls = { sub, big };
     tickRun();
   };
 
   function tickRun() {
     const r = Store.data.run;
-    if (!r || !ui.runEls) return;
-    let text = "";
-    if (r.status === "waiting" || (r.status === "backup" && Api.cooldownLeft() > 0)) {
-      const left = Api.cooldownLeft();
-      text = left > 0
-        ? `ChatGPT asked Triage to slow down. Carrying on by itself at ${fmtClock(Store.data.cooldownUntil)} (${fmtDuration(left)} left).`
-        : "Carrying on…";
-    } else if (r.status === "running" && r.nextAt) {
-      text = `in ${fmtDuration(r.nextAt - now())}`;
-    } else if (r.status === "running" && r.note) {
-      text = r.note;
-    }
-    ui.runEls.sub.textContent = text;
+    const els = ui.runEls;
+    if (!r || !els) return;
+    if (els.big) els.big.textContent = clock(Api.cooldownLeft());
+    if (r.status === "running" && r.nextAt) els.sub.textContent = `in ${Math.max(0, Math.ceil((r.nextAt - now()) / SEC))}s`;
+    else if (r.status === "running" && r.note) els.sub.textContent = r.note;
   }
 
   // ---------------------------------------------------------------------------
@@ -1839,6 +2169,7 @@
           d.protect[c.id] = { title: c.title, at: now() };
           delete d.marks[c.id];
           ui.sel.delete(c.id);
+          ui.fresh.add(c.id);
         } else {
           delete d.protect[c.id];
         }
@@ -1880,6 +2211,7 @@
         continue;
       }
       d.marks[c.id] = { a: action, title: c.title, at: now() };
+      ui.fresh.add(c.id);
       applied += 1;
     }
     Store.save();
@@ -1977,6 +2309,7 @@
       row.setAttribute("aria-selected", "true");
       if (scroll) row.scrollIntoView({ block: "nearest" });
     }
+    placeCursor(true);
   }
 
   function move(delta, extend) {
@@ -2056,7 +2389,8 @@
     }
     if (!ui.isOpen) return;
     if (isTyping(e)) {
-      if (e.key === "Escape" || (e.key === "Enter" && e.composedPath()[0] === ui.el.search) || (e.key === "ArrowDown" && e.composedPath()[0] === ui.el.search)) {
+      const t = e.composedPath()[0];
+      if (e.key === "Escape" || (e.key === "Enter" && t === ui.el.search) || (e.key === "ArrowDown" && t === ui.el.search)) {
         e.preventDefault();
         ui.el.list.focus({ preventScroll: true });
         if (e.key === "ArrowDown") move(1);
@@ -2071,9 +2405,8 @@
     const focused = ui.focusId ? Data.byId.get(ui.focusId) : null;
     const targets = () => (ui.sel.size ? selectedChats() : focused ? [focused] : []);
     const single = () => ui.sel.size === 0;
-    const k = e.key;
     const handled = () => e.preventDefault();
-    switch (k) {
+    switch (e.key) {
       case "ArrowDown":
       case "j":
         handled();
@@ -2208,8 +2541,10 @@
 
   function closeModal() {
     if (!ui.modal) return;
-    ui.modal.remove();
+    const wrap = ui.modal;
     ui.modal = null;
+    wrap.classList.add("leaving");
+    setTimeout(() => wrap.remove(), 150);
     const cb = ui.modalClose;
     ui.modalClose = null;
     if (cb) cb();
@@ -2221,15 +2556,20 @@
     const input = h("input", { type: "text", "aria-label": "New title", maxlength: "200" });
     input.value = mark && mark.a === "rename" ? mark.t : c.title;
     modal("Rename chat", [
-      h("p", null, `Currently: ${quote(c.title)}`),
+      h("div", { class: "lbl" }, "now"),
+      h("p", null, c.title || "Untitled"),
+      h("div", { class: "lbl" }, "new name"),
       input,
-      h("p", { style: "margin-top:10px;font-size:12.5px" }, "The new name is queued. ChatGPT only changes when you run the queue."),
+      h("p", { class: "hint", style: "margin-top:12px" }, "The new name is queued. ChatGPT only changes when you run the queue."),
     ], [
-      ["Cancel"],
-      ["Queue rename", "primary", () => {
+      ["cancel"],
+      ["queue rename", "primary", () => {
         const t = input.value.trim();
         if (!t || t === c.title) delete Store.data.marks[c.id];
-        else Store.data.marks[c.id] = { a: "rename", title: c.title, t, at: now() };
+        else {
+          Store.data.marks[c.id] = { a: "rename", title: c.title, t, at: now() };
+          ui.fresh.add(c.id);
+        }
         Store.save();
         ui.renderAll();
       }],
@@ -2249,29 +2589,23 @@
     for (const j of jobs) n[j.action] += 1;
     const gap = Store.data.settings.gap;
     const minutes = Math.max(1, Math.round((jobs.length * gap) / 60));
-    const rows = [];
-    for (const a of ["delete", "archive", "unarchive", "rename"]) {
-      if (!n[a]) continue;
-      rows.push(h("div", null, h("span", null, `${ACTION[a].label} ${plural(n[a], "chat")}`), a === "delete" ? h("span", { class: "perm" }, "Permanent. ChatGPT can't restore deleted chats.") : h("span", null)));
-    }
+    const rows = ["delete", "archive", "unarchive", "rename"].filter((a) => n[a]).map((a) => h("div", { class: a === "delete" ? "del" : "" },
+      h("span", null, ACTION[a].label.toLowerCase(), a === "delete" ? h("span", { class: "x" }, "permanent · ChatGPT can't restore deleted chats") : null),
+      h("span", { class: "n" }, String(n[a]))));
     const backup = h("input", { type: "checkbox" });
     backup.checked = Store.data.settings.backup;
     const typed = h("input", { type: "text", placeholder: String(n.delete), "aria-label": "Type the number of chats to delete" });
     const body = [
-      h("div", { class: "summary" }, rows),
-      h("p", null, `One change every ${gap} seconds, so this takes about ${plural(minutes, "minute")}. If ChatGPT says "too many requests", Triage waits and carries on by itself.`),
+      h("div", { class: "table" }, rows),
+      h("div", { class: "eta" }, `${plural(jobs.length, "change")} · one every ${gap}s · about ${minutes} min`),
+      h("p", { class: "hint" }, "If ChatGPT says \"too many requests\", Triage waits as long as it asks and carries on by itself."),
     ];
-    if (n.delete) {
-      body.push(h("div", { class: "field" }, h("label", null, backup, h("span", null, `Save a backup of the ${plural(n.delete, "chat")} being deleted first`)),
-        h("div", { class: "help" }, "Downloads one Markdown file before anything is deleted. It adds a little time.")));
-    }
-    if (n.delete >= CFG.typeToConfirm) {
-      body.push(h("div", { class: "field" }, h("div", { class: "help flush", style: "margin-bottom:6px;color:var(--fg)" }, `Type ${n.delete} to confirm deleting ${n.delete} chats.`), typed));
-    }
-    body.push(h("p", { style: "font-size:12.5px" }, "Tip: close other ChatGPT tabs and the ChatGPT desktop app while this runs. They count against the same limit."));
+    if (n.delete) body.push(check(backup, `back up the ${plural(n.delete, "chat")} being deleted first`, "Saves one Markdown file before anything is deleted."));
+    if (n.delete >= CFG.typeToConfirm) body.push(h("div", { class: "lbl" }, `type ${n.delete} to confirm`), typed);
+    body.push(h("p", { class: "hint", style: "margin-top:16px" }, "Close other ChatGPT tabs and the desktop app while this runs. They share the same limit."));
     const box = modal("Run the queue?", body, [
-      ["Cancel"],
-      [`Run ${plural(jobs.length, "change")}`, "primary", () => {
+      ["cancel"],
+      [`run ${jobs.length}`, "primary", () => {
         Store.data.settings.backup = backup.checked;
         Store.save();
         Runner.start({ backup: backup.checked });
@@ -2296,23 +2630,23 @@
     backup.checked = s.backup;
     const pinned = h("input", { type: "checkbox" });
     pinned.checked = s.pinnedInSelectAll;
-    const danger = (label, fn) => h("button", { class: "btn small", type: "button", onclick: fn }, label);
+    const small = (label, fn) => h("button", { class: "btn small", type: "button", onclick: fn }, label);
     modal("Settings", [
-      h("div", { class: "field" }, h("div", { class: "inline" }, h("span", null, "Wait between changes"), gap, h("span", null, "seconds")),
-        h("div", { class: "help flush" }, `Slower is safer. Minimum ${CFG.gapMin}, default ${CFG.gapDefault}. After a "too many requests", Triage also waits however long ChatGPT asks.`)),
-      h("div", { class: "field" }, h("label", null, backup, h("span", null, "Back up chats before deleting them")),
-        h("div", { class: "help" }, "Saves a Markdown file of the chats in the delete queue before anything is deleted.")),
-      h("div", { class: "field" }, h("label", null, pinned, h("span", null, "Include pinned chats in select all")),
-        h("div", { class: "help" }, "Off by default, so select all never picks up pinned chats.")),
-      h("div", { class: "sep" }),
+      h("div", { class: "lbl", style: "margin-top:0" }, "pace"),
+      h("div", { class: "inline" }, h("span", null, "wait"), gap, h("span", null, "seconds between changes")),
+      h("p", { class: "hint", style: "margin-top:10px" }, `Slower is safer. Minimum ${CFG.gapMin}, default ${CFG.gapDefault}. After a "too many requests", Triage also waits however long ChatGPT asks.`),
+      h("div", { class: "lbl" }, "safety"),
+      check(backup, "back up chats before deleting them", "Saves a Markdown file of the chats in the delete queue before anything is deleted."),
+      check(pinned, "include pinned chats in select all", "Off by default, so select all never picks up pinned chats."),
+      h("div", { class: "lbl" }, "data"),
       h("div", { class: "stack" },
-        danger("Download chat list (CSV)", exportList),
-        danger("Clear all marks", () => resetState("marks", "Clear every queued change?")),
-        danger("Forget what I've read", () => resetState("seen", "Mark every chat as unread again?")),
-        danger("Unprotect everything", () => resetState("protect", "Remove protection from every chat?"))),
+        small("download chat list (csv)", exportList),
+        small("clear all marks", () => resetState("marks", "Clear every queued change?")),
+        small("forget what I've read", () => resetState("seen", "Mark every chat as unread again?")),
+        small("unprotect everything", () => resetState("protect", "Remove protection from every chat?"))),
     ], [
-      ["Cancel"],
-      ["Save", "primary", () => {
+      ["cancel"],
+      ["save", "primary", () => {
         s.gap = clamp(Math.round(Number(gap.value)) || CFG.gapDefault, CFG.gapMin, CFG.gapMax);
         s.backup = backup.checked;
         s.pinnedInSelectAll = pinned.checked;
@@ -2334,27 +2668,31 @@
 
   function openHelp() {
     const keys = [
-      ["↑ ↓ or J K", "Move through the list. The chat opens on the right."],
-      ["Shift + ↑ ↓", "Select as you move"],
-      ["Space or X", "Select or unselect"],
-      ["Shift-click", "Select a range"],
-      ["D", "Queue delete, then move on"],
-      ["A", "Queue archive (unarchive in Archived)"],
-      ["R", "Queue a new name"],
-      ["P", "Protect. Protected chats can't be queued."],
-      ["C", "Clear the queued change"],
-      ["/", "Search"],
-      ["Esc", "Clear the selection"],
-      ["Alt + Shift + T", "Open or close Triage"],
+      [["↑", "↓"], "move; the chat opens on the right"],
+      [["j", "k"], "move, the vim way"],
+      [["shift", "↑↓"], "select while moving"],
+      [["space"], "select or unselect"],
+      [["d"], "queue delete, then next"],
+      [["a"], "queue archive (unarchive in archived)"],
+      [["r"], "queue a new name"],
+      [["p"], "protect: never touched"],
+      [["c"], "clear the queued change"],
+      [["/"], "search"],
+      [["esc"], "clear the selection"],
+      [["alt", "shift", "t"], "open or close Triage"],
     ];
-    modal("How Triage works", [
-      h("p", null, "Read your chats, queue what should happen to each one, then run the queue. ChatGPT doesn't change until you press Run queue, and your marks are saved in this browser."),
-      h("div", { class: "keys" }, keys.map(([k, v]) => [h("span", null, k.split(" ").map((part) => (part === "or" || part === "+" ? ` ${part} ` : h("span", { class: "kbd" }, part)))), h("span", null, v)])),
-      h("p", null, h("b", null, "Staying under ChatGPT's limit. "), "Triage makes one change at a time with a pause between each. If ChatGPT says \"too many requests\", Triage stops every request, waits as long as ChatGPT asks (or longer each time if it doesn't say), then carries on with the same chat."),
-      h("p", null, h("b", null, "Safety. "), "Project and pinned chats are left out of Main and select all. Deleting can be backed up first, and big deletes ask you to type the number. At the end, Triage reloads your list to check the changes stuck."),
-      h("p", null, h("b", null, "Privacy. "), "Triage runs in your browser and only talks to chatgpt.com. The Network button shows every request it sends."),
-      h("p", { style: "font-size:12.5px" }, `Version ${VERSION}. `, h("a", { href: HOMEPAGE, target: "_blank", rel: "noopener noreferrer" }, "Source code and updates on GitHub"), ". Not affiliated with OpenAI."),
-    ], [["Close", "primary"]]);
+    modal("Triage", [
+      h("p", null, "Read your chats, mark what should happen to each one, then run the queue. ChatGPT doesn't change until you do, and your marks are saved in this browser."),
+      h("div", { class: "lbl" }, "keys"),
+      h("div", { class: "keys" }, keys.map(([ks, v]) => [h("span", null, ks.map((k) => h("span", { class: "kbd" }, k))), h("span", null, v)])),
+      h("div", { class: "lbl" }, "the limit"),
+      h("p", null, "One change at a time, with a pause between each. If ChatGPT says \"too many requests\", Triage stops every request, waits as long as ChatGPT asks (longer each time if it doesn't say), then carries on with the same chat."),
+      h("div", { class: "lbl" }, "safety"),
+      h("p", null, "Project and pinned chats stay out of Main and select all. Deletes can be backed up first, and big deletes ask you to type the number. At the end, Triage reloads your list to check the changes stuck."),
+      h("div", { class: "lbl" }, "privacy"),
+      h("p", null, "Triage runs in your browser and only talks to chatgpt.com. The network button shows every request it sends."),
+      h("p", { class: "hint" }, `v${VERSION} · `, h("a", { href: HOMEPAGE, target: "_blank", rel: "noopener noreferrer", style: "text-decoration:underline" }, "source on GitHub"), " · not affiliated with OpenAI"),
+    ], [["close", "primary"]]);
   }
 
   function exportList() {
@@ -2385,7 +2723,10 @@
     ui.root.append(t);
     ui.toastEl = t;
     clearTimeout(ui.toastTimer);
-    ui.toastTimer = setTimeout(() => t.remove(), 3400);
+    ui.toastTimer = setTimeout(() => {
+      t.classList.add("leaving");
+      setTimeout(() => t.remove(), 200);
+    }, 3200);
   };
 
   function recheckOtherTab() {
@@ -2412,7 +2753,7 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Clock: countdowns, heartbeat, banners
+  // Clocks: countdowns, heartbeat, spinners
   // ---------------------------------------------------------------------------
 
   let hadCooldown = false;
@@ -2426,17 +2767,27 @@
     }
     const cooling = Api.cooldownLeft() > 0;
     if (ui.isOpen) {
-      if (r) ui.renderRun(false);
+      if (r) ui.renderRun();
       if (cooling || hadCooldown) {
         const cd = ui.el.banners.querySelector("[data-countdown]");
-        if (cd && cooling) cd.textContent = fmtDuration(Api.cooldownLeft());
+        if (cd && cooling) cd.textContent = clock(Api.cooldownLeft());
         else ui.renderBanners();
         if (!cooling) ui.renderTop();
       }
+      renderState();
     }
     hadCooldown = cooling;
     if (!ui.isOpen) ui.renderLauncher();
   }, 500);
+
+  let spinFrame = 0;
+  setInterval(() => {
+    if (!ui.root || (!ui.isOpen && !ui.modal)) return;
+    const spins = ui.root.querySelectorAll(".spin");
+    if (!spins.length) return;
+    spinFrame = (spinFrame + 1) % SPIN.length;
+    for (const s of spins) s.textContent = SPIN[spinFrame];
+  }, 80);
 
   // ---------------------------------------------------------------------------
   // Start
