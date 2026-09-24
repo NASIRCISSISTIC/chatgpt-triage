@@ -60,7 +60,7 @@ You'll need to paste it again after reloading the page. Only paste code you've r
 
 1. **Read and mark.** Go down the list. The chat opens on the right. Mark it or skip it.
 2. **Check the queue.** The top bar shows what's queued. **Filter → Marked** shows only chats with a change waiting.
-3. **Run it.** Press **Run Queue**, check the summary, and confirm. Deleting 20 or more chats asks you to type the number. You can close the panel while it runs; the corner button shows progress.
+3. **Run it.** Press **Run Queue**, check the summary, and confirm. The summary lists every chat that's about to change, with deletions first. Deleting 20 or more chats asks you to type the number. You can close the panel while it runs; the corner button shows progress.
 
 ![The confirmation before running the queue](docs/confirm.png)
 

@@ -949,7 +949,8 @@
       --top: 56px; --band1: 52px; --band2: 40px; --gutter: 20px;
       --bg: #ffffff; --raised: #ffffff; --fill: #f2f2f4; --fill2: #e8e8eb; --line: #ebebee;
       --fg: #111113; --fg2: #505055; --fg3: #6e6e73;
-      --red: #d70015; --green: #1f9d4c; --amber: #b86e00;
+      --red: #d70015; --red-on-sel: #c50013; --pill: #d70015; --green: #1f9d4c; --amber: #b86e00;
+      --focus: #111113; --on-focus: #ffffff; --focus-ring: none;
       --veil: rgba(255, 255, 255, .72);
       --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.6 6.3 5 8.6 9.4 3.9' fill='none' stroke='%23fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
       --tick-inv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.6 6.3 5 8.6 9.4 3.9' fill='none' stroke='%23111113' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -961,12 +962,14 @@
       -moz-osx-font-smoothing: grayscale;
     }
     .root.dark {
-      --bg: #000000; --raised: #0c0c0d; --fill: #151517; --fill2: #202023; --line: #1d1d20;
+      --bg: #000000; --raised: #0c0c0d; --fill: #151517; --fill2: #202023; --line: #2c2c30;
       --fg: #f5f5f7; --fg2: #a1a1a6; --fg3: #8a8a8f;
-      --red: #ff453a; --green: #30d158; --amber: #ffb340;
+      --red: #ff453a; --red-on-sel: #ff453a; --pill: #d70015; --green: #30d158; --amber: #ffb340;
+      /* A dark grey cursor with a hairline edge: a white bar on black outweighed everything else. */
+      --focus: #2a2a2d; --on-focus: #f5f5f7; --focus-ring: inset 0 0 0 1px #55555a;
       --veil: rgba(0, 0, 0, .68);
       --tick: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.6 6.3 5 8.6 9.4 3.9' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-      --tick-inv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.6 6.3 5 8.6 9.4 3.9' fill='none' stroke='%23f5f5f7' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      --tick-inv: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.6 6.3 5 8.6 9.4 3.9' fill='none' stroke='%232a2a2d' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
       --shadow: 0 0 0 1px rgba(255, 255, 255, .04), 0 40px 90px -24px rgba(0, 0, 0, .95);
       color-scheme: dark;
     }
@@ -1021,6 +1024,9 @@
     .tab { border: 0; background: none; padding: 0; cursor: pointer; display: flex; align-items: center; gap: 6px; color: var(--fg3); transition: color .2s; }
     .tab:hover { color: var(--fg2); }
     .tab.on { color: var(--fg); }
+    /* Words and numbers use different fonts, so centring their boxes puts the digits ~1px high. Align on the baseline instead. */
+    .tl { display: inline-flex; align-items: baseline; gap: 6px; }
+    .btn .tl { gap: 8px; }
     .tab .n { font: 12px/1 var(--mono); color: var(--fg3); font-variant-numeric: tabular-nums; }
     .tabind { position: absolute; left: 0; bottom: -1px; height: 2px; width: 0; border-radius: 2px; background: var(--fg); opacity: 0; pointer-events: none; transition: transform .35s var(--ease), width .35s var(--ease), opacity .2s; }
     .instant { transition: none !important; }
@@ -1050,13 +1056,13 @@
     .btn.icon.theme svg { animation: turn .5s var(--ease) both; }
     .key { font: 12px/1 var(--mono); color: var(--fg3); }
     .fcount { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 5px; background: var(--fg); color: var(--bg); font: 600 11px/18px var(--mono); text-align: center; }
-    .run { height: 32px; display: inline-flex; align-items: stretch; padding: 0; margin: 0 8px 0 4px; border: 0; border-radius: 8px; background: var(--fg); color: var(--bg); cursor: pointer; font-weight: 600; transition: opacity .15s; }
+    .run { height: 32px; display: inline-flex; align-items: baseline; padding: 0; margin: 0 8px 0 4px; border: 0; border-radius: 8px; background: var(--fg); color: var(--bg); cursor: pointer; font-weight: 600; transition: opacity .15s; }
     .run:hover:not(:disabled) { opacity: .88; }
     .run:disabled { opacity: .3; cursor: default; }
-    .run .go { display: inline-flex; align-items: center; gap: 8px; padding: 0 12px; }
-    .run .go svg { transition: transform .3s var(--ease); }
+    .run .go { display: block; padding: 0 12px; line-height: 32px; white-space: nowrap; }
+    .run .go svg { margin-right: 8px; vertical-align: -1px; transition: transform .3s var(--ease); }
     .run:hover:not(:disabled) .go svg { transform: translateX(2px); }
-    .run .count { display: grid; place-items: center; min-width: 38px; padding: 0 10px; border-left: 1px solid color-mix(in srgb, var(--bg) 22%, transparent); font: 600 12px/1 var(--mono); font-variant-numeric: tabular-nums; }
+    .run .count { display: block; min-width: 38px; padding: 0 10px; text-align: center; border-left: 1px solid color-mix(in srgb, var(--bg) 22%, transparent); font: 600 12px/32px var(--mono); font-variant-numeric: tabular-nums; }
     .run .count.bump span { display: inline-block; animation: bump .4s var(--ease); }
 
     .banner { display: flex; align-items: center; gap: 12px; padding: 10px var(--gutter); border-bottom: 1px solid var(--line); background: var(--fill); color: var(--fg2); animation: up .3s var(--ease) both; }
@@ -1094,7 +1100,7 @@
     .menu .opt.on svg { visibility: visible; }
     .menu hr { margin: 6px 4px; border: 0; border-top: 1px solid var(--line); }
 
-    .gut { position: relative; width: 16px; height: 16px; display: grid; place-items: center; flex-shrink: 0; }
+    .gut { position: relative; width: 16px; height: 16px; display: grid; place-items: center; flex-shrink: 0; align-self: center; }
     .row .gut::after { content: ""; position: absolute; inset: -10px -8px -10px -12px; } /* a 36px-tall target for a 14px checkbox */
     .cb {
       appearance: none; -webkit-appearance: none; margin: 0; width: 14px; height: 14px; flex-shrink: 0; cursor: pointer;
@@ -1107,55 +1113,61 @@
     .cb:disabled { opacity: .3; cursor: default; }
 
     .list { flex: 1; position: relative; overflow: auto; overscroll-behavior: contain; outline: none; padding: 6px 0 28px; }
-    .cursor { position: absolute; top: 0; left: 8px; right: 8px; height: 36px; border-radius: 8px; background: var(--fg); opacity: 0; pointer-events: none; transition: transform .22s var(--ease), height .22s var(--ease), opacity .18s; }
+    .cursor { position: absolute; top: 0; left: 8px; right: 8px; height: 36px; border-radius: 8px; background: var(--focus); box-shadow: var(--focus-ring); opacity: 0; pointer-events: none; transition: transform .22s var(--ease), height .22s var(--ease), opacity .18s; }
     .rows { position: relative; }
     .row {
       position: relative; height: 36px; margin: 0 8px; padding: 0 12px; display: grid; grid-template-columns: 16px 92px minmax(0, 1fr) auto;
-      column-gap: 12px; align-items: center; border-radius: 8px; transition: background-color .15s, color .15s;
+      column-gap: 12px; align-items: baseline; align-content: center; border-radius: 8px; transition: background-color .15s, color .15s;
     }
     .row:hover { background: var(--fill); }
     .row.sel { background: var(--fill2); }
-    .row.focus, .row.focus:hover { background: transparent; color: var(--bg); }
+    .row.focus, .row.focus:hover { background: transparent; color: var(--on-focus); }
     .row .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fg); }
-    .row.focus .dot { background: var(--bg); }
-    .row .cb { display: none; }
-    .row:hover .cb, .row.sel .cb, .list.selecting .row .cb { display: block; }
-    .row:hover .dot, .row.sel .dot, .list.selecting .row .dot { display: none; }
-    .row.focus .cb { border-color: var(--bg); }
-    .row.focus .cb:checked { background-color: var(--bg); background-image: var(--tick-inv); }
+    .row.focus .dot { background: var(--on-focus); }
+    /* The dot and the checkbox share one cell and swap by visibility, so selecting doesn't re-lay-out every row. */
+    .gut > * { grid-area: 1 / 1; }
+    .row .cb { visibility: hidden; }
+    .row:hover .cb, .row.sel .cb, .list.selecting .row .cb { visibility: visible; }
+    .row:hover .dot, .row.sel .dot, .list.selecting .row .dot { visibility: hidden; }
+    .row.focus .cb { border-color: var(--on-focus); }
+    .row.focus .cb:checked { background-color: var(--on-focus); background-image: var(--tick-inv); }
     .row .date { font: 12px/1 var(--mono); color: var(--fg3); font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .row.focus .date { color: color-mix(in srgb, var(--bg) 62%, transparent); }
+    .row.focus .date { color: color-mix(in srgb, var(--on-focus) 62%, transparent); }
     .row .title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .row .t { position: relative; }
     .row.seen .t { color: var(--fg2); }
-    .row.focus .t { color: var(--bg); }
+    .row.focus .t { color: var(--on-focus); }
     .row.m-delete .t { color: var(--fg3); }
     .row.m-delete .t::after { content: ""; position: absolute; left: 0; right: 0; top: 55%; height: 1px; background: currentColor; transform-origin: left center; }
     .row.m-delete.fresh .t::after { animation: strike .38s var(--ease) both; }
-    .row.focus.m-delete .t { color: color-mix(in srgb, var(--bg) 55%, transparent); }
+    .row.focus.m-delete .t { color: color-mix(in srgb, var(--on-focus) 55%, transparent); }
     .chip { display: inline-block; margin-right: 8px; padding: 0 6px; border-radius: 4px; background: var(--fill2); font-size: 12px; line-height: 18px; color: var(--fg2); vertical-align: 1px; }
-    .row.focus .chip { background: color-mix(in srgb, var(--bg) 18%, transparent); color: var(--bg); }
-    .end { position: relative; display: flex; align-items: center; justify-content: flex-end; }
-    .mark { max-width: 230px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; color: var(--fg2); transition: opacity .15s; }
+    .row.focus .chip { background: color-mix(in srgb, var(--on-focus) 18%, transparent); color: var(--on-focus); }
+    .end { position: relative; display: flex; align-items: baseline; justify-content: flex-end; }
+    .end::before { content: "\\200b"; } /* an empty status slot still has a text line, so the hover buttons centre on it */
+    .mark { max-width: 120px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; color: var(--fg2); transition: opacity .15s; }
     .mark.delete { color: var(--red); }
-    .mark.prot { display: inline-flex; align-items: center; gap: 5px; color: var(--fg3); }
-    .mark .v { color: var(--fg); }
+    .mark svg { margin-right: 5px; vertical-align: -2px; }
+    .mark.prot { color: var(--fg3); }
+    .row .to { color: var(--fg); }
+    .row.focus .to { color: var(--on-focus); }
     .mark.fresh { animation: slide .26s var(--ease) both; }
-    .row.focus .mark, .row.focus .mark .v { color: var(--bg); }
-    .row.focus .mark.delete { padding: 2px 7px; border-radius: 5px; background: var(--red); color: #fff; }
+    .row.focus .mark { color: var(--on-focus); }
+    .row.focus .mark.delete { padding: 2px 7px; border-radius: 5px; background: var(--pill); color: #fff; }
+    .row.sel:not(.focus) .mark.delete { color: var(--red-on-sel); }
     .acts {
       position: absolute; right: -6px; top: 50%; transform: translateY(-50%); display: flex; gap: 2px; padding-left: 28px;
       opacity: 0; pointer-events: none; transition: opacity .15s; background: linear-gradient(to right, transparent, var(--fill) 24px);
     }
     .row:hover .acts { opacity: 1; pointer-events: auto; }
-    .row:hover .mark { opacity: 0; }
+    .end:has(.mark) .acts { right: calc(100% + 6px); } /* hover buttons sit beside the mark, never over it */
     .row.sel .acts { background: linear-gradient(to right, transparent, var(--fill2) 24px); }
-    .row.focus .acts { background: linear-gradient(to right, transparent, var(--fg) 24px); }
+    .row.focus .acts { background: linear-gradient(to right, transparent, var(--focus) 24px); }
     .mini { width: 28px; height: 28px; border: 0; border-radius: 8px; background: transparent; color: var(--fg2); cursor: pointer; display: grid; place-items: center; transition: background-color .12s, color .12s; }
     .mini:hover { background: var(--fill2); color: var(--fg); }
     .mini.on { color: var(--fg); }
-    .row.focus .mini { color: color-mix(in srgb, var(--bg) 70%, transparent); }
-    .row.focus .mini:hover { background: color-mix(in srgb, var(--bg) 16%, transparent); color: var(--bg); }
+    .row.focus .mini { color: color-mix(in srgb, var(--on-focus) 70%, transparent); }
+    .row.focus .mini:hover { background: color-mix(in srgb, var(--on-focus) 16%, transparent); color: var(--on-focus); }
 
     .note { padding: 48px 24px; text-align: center; color: var(--fg3); animation: fade .3s var(--ease) both; }
     .note .btn { margin-top: 14px; }
@@ -1164,6 +1176,7 @@
     /* Reader */
     .col { width: 100%; max-width: 744px; margin: 0 auto; padding: 0 32px; display: flex; align-items: center; gap: 4px; min-width: 0; }
     .reader .b1 .col > .btn:first-child { margin-left: -10px; }
+    .reader.idle-state .band { border-bottom-color: transparent; }
     .meta { gap: 18px; color: var(--fg3); white-space: nowrap; overflow: hidden; }
     .meta .num { font: 12px/1 var(--mono); font-variant-numeric: tabular-nums; }
     .meta .state { margin-left: auto; font-weight: 600; color: var(--fg2); overflow: hidden; text-overflow: ellipsis; }
@@ -1211,7 +1224,7 @@
     .fold > div { min-height: 0; overflow: hidden; }
     .wheel {
       position: relative; height: 196px; margin: 4px -12px 0; perspective: 2000px; overflow: hidden; outline: none; cursor: grab; touch-action: none; user-select: none;
-      -webkit-mask-image: linear-gradient(to bottom, transparent, #000 24%, #000 76%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 24%, #000 76%, transparent);
+      -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 14%, #000 86%, transparent);
     }
     .wheel.dragging { cursor: grabbing; }
     .wheel::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 36px; margin-top: -18px; border-radius: 8px; background: var(--fill); }
@@ -1221,7 +1234,7 @@
     .drum.instant, .drum.instant .wi { transition: none; }
     .wi {
       position: absolute; left: 0; right: 0; top: 50%; height: 36px; margin-top: -18px; display: flex; align-items: center; gap: 12px; padding: 0 12px;
-      white-space: nowrap; opacity: .55; backface-visibility: hidden; -webkit-backface-visibility: hidden; transition: opacity .6s var(--ease);
+      white-space: nowrap; opacity: .72; backface-visibility: hidden; -webkit-backface-visibility: hidden; transition: opacity .6s var(--ease);
     }
     .wi.mid { opacity: 1; }
     .wi .g { width: 14px; flex-shrink: 0; display: grid; place-items: center; color: var(--fg3); }
@@ -1265,6 +1278,18 @@
     }
     .modal-wrap.leaving { animation: fade-out .15s var(--ease-in) both; pointer-events: none; }
     .modal-wrap.leaving .modal { animation: sink .15s var(--ease-in) both; }
+    .review { margin-top: 12px; }
+    .review summary { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; color: var(--fg2); list-style: none; border-radius: 6px; }
+    .review summary::-webkit-details-marker { display: none; }
+    .review summary:hover { color: var(--fg); }
+    .review summary svg { transform: rotate(-90deg); transition: transform .2s var(--ease); }
+    .review[open] summary svg { transform: none; }
+    .review .items { max-height: 188px; overflow: auto; margin-top: 8px; padding: 2px 0 6px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .review .grp { margin: 8px 0 2px; font-size: 12px; color: var(--fg3); }
+    .review .grp.del { color: var(--red); }
+    .review .it { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 3px 0; }
+    .review .it .d { font: 12px/1.5 var(--mono); color: var(--fg3); font-variant-numeric: tabular-nums; }
+    .review .it .t { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .modal { width: min(500px, 100%); max-height: calc(100vh - 48px); overflow: auto; padding: 24px; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); animation: rise .32s var(--ease) both; }
     .modal h2 { margin: 0 0 16px; font: 600 18px/1.3 var(--sans); letter-spacing: -.015em; }
     .modal p { margin: 0 0 12px; color: var(--fg2); line-height: 1.55; }
@@ -1304,6 +1329,9 @@
       box-shadow: var(--shadow); animation: toast .32s var(--ease) both;
     }
     .toast.leaving { animation: toast-out .2s var(--ease-in) both; }
+    @media (min-width: 981px) {
+      .toast { left: calc(clamp(420px, 44vw, 600px) / 2); max-width: calc(clamp(420px, 44vw, 600px) - 32px); }
+    }
 
     @media (max-width: 980px) {
       .queue { display: none; }
@@ -1377,6 +1405,9 @@
     readerBody: null,
     order: [],
     rowEls: new Map(),
+    rowSigs: new Map(),
+    shownOrder: null,
+    actsEl: null,
     drawer: null, // "activity" | "network" | null
     menu: null, // { which, el, anchor }
     modal: null,
@@ -1600,7 +1631,13 @@
     el.listhead = h("div", { class: "band b2" });
     el.cursor = h("div", { class: "cursor instant", "aria-hidden": "true" });
     el.rows = h("div", { class: "rows" });
-    el.list = h("div", { class: "list", tabindex: "0", role: "listbox", "aria-label": "Chats", onclick: onListClick }, el.cursor, el.rows);
+    el.list = h("div", {
+      class: "list", tabindex: "0", role: "listbox", "aria-label": "Chats", onclick: onListClick,
+      onmouseover: (e) => {
+        const row = e.target.closest(".row");
+        if (row && !(ui.actsEl && row.contains(ui.actsEl))) attachActs(row);
+      },
+    }, el.cursor, el.rows);
     el.left = h("div", { class: "left" },
       h("div", { class: "band b1" },
         h("label", { class: "search" }, icon("search", 16), el.search, h("span", { class: "key" }, "/")),
@@ -1868,7 +1905,7 @@
       class: `tab${ui.filters.scope === key ? " on" : ""}`, type: "button", role: "tab", title,
       "aria-selected": String(ui.filters.scope === key),
       onclick: () => setScope(key),
-    }, h("span", null, TAB_LABEL[key]), count == null ? null : h("span", { class: "n" }, String(count)))));
+    }, h("span", { class: "tl" }, h("span", null, TAB_LABEL[key]), count == null ? null : h("span", { class: "n" }, String(count))))));
     requestAnimationFrame(placeTabIndicator);
   };
 
@@ -1968,9 +2005,14 @@
 
   ui.renderList = function renderList() {
     const el = ui.el;
-    ui.rowEls = new Map();
     el.list.classList.toggle("selecting", ui.sel.size > 0);
+    const dropRows = () => {
+      ui.rowEls = new Map();
+      ui.rowSigs = new Map();
+      ui.shownOrder = null;
+    };
     if (ui.fatal) {
+      dropRows();
       ui.order = [];
       put(el.listhead);
       put(el.rows, h("div", { class: "note" }, h("div", null, ui.fatal), h("button", { class: "btn", type: "button", onclick: () => retryBoot() }, "Try Again")));
@@ -1994,6 +2036,7 @@
       const text = L.message || (L.waiting
         ? `ChatGPT asked Triage to slow down. Carrying on at ${fmtClock(Store.data.cooldownUntil)}.`
         : `Loading chats  ${L.n}${L.total ? ` / ~${L.total}` : ""}`);
+      dropRows();
       put(el.rows, h("div", { class: "note" }, spinner(), text));
       placeCursor(false);
       return;
@@ -2002,19 +2045,40 @@
     renderListHead(rows);
     if (!rows.length) {
       const filtered = ui.filters.q || activeFilters();
+      dropRows();
       put(el.rows, h("div", { class: "note" }, h("div", null, filtered ? "No chats match these filters." : "No chats here."),
         filtered ? h("button", { class: "btn", type: "button", onclick: clearFilters }, "Clear Filters") : null));
       placeCursor(false);
       return;
     }
-    const frag = document.createDocumentFragment();
-    for (const c of rows) {
-      const row = rowEl(c);
-      ui.rowEls.set(c.id, row);
-      frag.append(row);
+    // When the same chats are listed in the same order (marking, protecting, selecting), only the rows
+    // that changed are rebuilt. A keypress then costs a row or two instead of the whole list.
+    const prev = ui.shownOrder;
+    const same = !loadingHere && prev && prev.length === rows.length && rows.every((c, i) => prev[i] === c.id);
+    if (same) {
+      for (const c of rows) {
+        const sig = rowSig(c);
+        if (ui.rowSigs.get(c.id) === sig) continue;
+        const row = rowEl(c);
+        ui.rowEls.get(c.id).replaceWith(row);
+        ui.rowEls.set(c.id, row);
+        ui.rowSigs.set(c.id, sig);
+      }
+    } else {
+      dropRows();
+      const frag = document.createDocumentFragment();
+      for (const c of rows) {
+        const row = rowEl(c);
+        ui.rowEls.set(c.id, row);
+        ui.rowSigs.set(c.id, rowSig(c));
+        frag.append(row);
+      }
+      if (loadingHere) frag.append(h("div", { class: "note" }, spinner(), L.waiting ? "Waiting for ChatGPT" : `Loading  ${L.n}${L.total ? ` / ~${L.total}` : ""}`));
+      put(el.rows, frag);
+      ui.shownOrder = loadingHere ? null : ui.order.slice();
     }
-    if (loadingHere) frag.append(h("div", { class: "note" }, spinner(), L.waiting ? "Waiting for ChatGPT" : `Loading  ${L.n}${L.total ? ` / ~${L.total}` : ""}`));
-    put(el.rows, frag);
+    const hovered = el.rows.querySelector(".row:hover");
+    if (hovered) attachActs(hovered);
     if (ui.focusId && !ui.rowEls.has(ui.focusId)) ui.focusId = null;
     ui.fresh.clear();
     placeCursor(false);
@@ -2058,6 +2122,32 @@
     return h("button", { class: `btn t-${action}${action === "delete" ? " danger" : ""}`, type: "button", title: `${a.label} the selected chats (${a.key})`, onclick: () => applyAction(action, selectedChats()) }, a.label);
   }
 
+  // Everything a row's look depends on. Same signature, same row: no need to rebuild it.
+  function rowSig(c) {
+    const d = Store.data;
+    const m = d.marks[c.id];
+    return [c.title, c.created, c.pinned ? 1 : 0, c.projectId ? 1 : 0, c.gptId ? 1 : 0, c.archived ? 1 : 0, m ? `${m.a}:${m.t || ""}` : "",
+      d.protect[c.id] ? 1 : 0, ui.sel.has(c.id) ? 1 : 0, d.seen[c.id] ? 1 : 0, c.id === ui.focusId ? 1 : 0, ui.fresh.has(c.id) ? 1 : 0,
+      ui.filters.scope === "projects" ? 1 : 0].join("\u0001");
+  }
+
+  // The hover buttons are built only for the row under the pointer, not for every row in the list.
+  function attachActs(row) {
+    const c = row && Data.byId.get(row.dataset.id);
+    if (!c) return;
+    const d = Store.data;
+    const mark = d.marks[c.id];
+    const prot = Boolean(d.protect[c.id]);
+    const archiveAction = c.archived ? "unarchive" : "archive";
+    if (ui.actsEl) ui.actsEl.remove();
+    ui.actsEl = h("span", { class: "acts" },
+      miniBtn(archiveAction, Boolean(mark && mark.a === archiveAction)),
+      miniBtn("delete", Boolean(mark && mark.a === "delete")),
+      miniBtn("rename", Boolean(mark && mark.a === "rename")),
+      miniBtn("protect", prot));
+    row.querySelector(".end").append(ui.actsEl);
+  }
+
   function rowEl(c) {
     const d = Store.data;
     const mark = d.marks[c.id];
@@ -2077,18 +2167,16 @@
     cb.checked = ui.sel.has(c.id);
     let tag = null;
     if (prot) tag = h("span", { class: `mark prot${fresh ? " fresh" : ""}`, title: "Protected: Triage won't change this chat" }, icon("shield", 13), "Protected");
-    else if (mark && mark.a === "rename") tag = h("span", { class: `mark${fresh ? " fresh" : ""}`, title: `Rename to ${quote(mark.t)}` }, "Rename → ", h("span", { class: "v" }, mark.t));
-    else if (mark) tag = h("span", { class: `mark ${mark.a}${fresh ? " fresh" : ""}` }, ACTION[mark.a].label);
-    const acts = h("span", { class: "acts" },
-      miniBtn(c.archived ? "unarchive" : "archive", Boolean(mark && mark.a === (c.archived ? "unarchive" : "archive"))),
-      miniBtn("delete", Boolean(mark && mark.a === "delete")),
-      miniBtn("rename", Boolean(mark && mark.a === "rename")),
-      miniBtn("protect", prot));
+    else if (mark && mark.a === "rename") tag = h("span", { class: `mark${fresh ? " fresh" : ""}`, title: `Rename to ${quote(mark.t)}` }, "Rename");
+    else if (mark) tag = h("span", { class: `mark ${mark.a}${fresh ? " fresh" : ""}` }, mark.a === "delete" ? null : icon(ACTION[mark.a].icon, 13), ACTION[mark.a].label);
+    // The new name sits right after the old one, so the pair reads as one change.
+    const renameTo = !prot && mark && mark.a === "rename" ? mark.t : null;
     return h("div", { class: cls.join(" "), id: `r-${c.id}`, "data-id": c.id, role: "option", "aria-selected": String(c.id === ui.focusId) },
       h("span", { class: "gut" }, d.seen[c.id] ? null : h("span", { class: "dot", title: "Not opened yet" }), cb),
       h("span", { class: "date", title: c.created ? new Date(c.created).toLocaleString() : "" }, isoDate(c.created)),
-      h("span", { class: "title", title: c.title || "Untitled" }, chips, h("span", { class: "t" }, c.title || "Untitled")),
-      h("span", { class: "end" }, tag, acts));
+      h("span", { class: "title", dir: "auto", title: renameTo ? `${c.title || "Untitled"} → ${renameTo}` : c.title || "Untitled" },
+        chips, h("span", { class: "t" }, c.title || "Untitled"), renameTo ? h("span", { class: "to" }, ` → ${renameTo}`) : null),
+      h("span", { class: "end" }, tag));
   }
 
   function miniBtn(action, on) {
@@ -2130,6 +2218,7 @@
   ui.renderReader = function renderReader() {
     const el = ui.el;
     const c = ui.readerId ? Data.byId.get(ui.readerId) : null;
+    el.reader.classList.toggle("idle-state", !c);
     if (!c) {
       put(el.actionsCol);
       put(el.metaCol);
@@ -2148,7 +2237,7 @@
       const on = action === "protect" ? prot : Boolean(mark && mark.a === action);
       const label = action === "protect" ? (prot ? "Unprotect" : "Protect") : on ? `Unmark ${a.label}` : a.label;
       return h("button", { class: `btn${on ? " on" : ""}${action === "delete" ? " danger" : ""}`, type: "button", title: `${label} (${a.key})`, onclick: () => applyAction(action, [c]) },
-        label, h("span", { class: "key" }, a.key));
+        h("span", { class: "tl" }, label, h("span", { class: "key" }, a.key)));
     };
     const open = TEST.demo
       ? h("button", { class: "btn quiet", type: "button", title: "Open in ChatGPT", onclick: () => ui.toast("In the demo, chats don't open in ChatGPT.") }, h("span", { class: "lbl" }, "Open in ChatGPT"), icon("external", 15))
@@ -2176,10 +2265,10 @@
     ui.readerBody = bodyKey;
     if (conv) {
       const column = h("div", { class: "col enter" },
-        h("h1", null, c.title || "Untitled"),
+        h("h1", { dir: "auto" }, c.title || "Untitled"),
         conv.messages.length
           ? conv.messages.map((m, i) => {
-            const msg = h("div", { class: `msg ${m.role}` }, h("div", { class: "who" }, m.role === "user" ? "You" : "ChatGPT"), h("div", { class: "txt" }, m.text));
+            const msg = h("div", { class: `msg ${m.role}` }, h("div", { class: "who" }, m.role === "user" ? "You" : "ChatGPT"), h("div", { class: "txt", dir: "auto" }, m.text));
             msg.style.animationDelay = `${Math.min(i + 1, 6) * 45}ms`;
             return msg;
           })
@@ -2192,10 +2281,10 @@
       const text = e.kind === "cooldown" || e.kind === "ratelimit"
         ? `ChatGPT asked Triage to slow down. You can read chats again at ${fmtClock(Store.data.cooldownUntil)}.`
         : e.kind === "notfound" ? "This chat doesn't exist in ChatGPT any more." : `Couldn't load this chat. ${e.message || ""}`;
-      put(el.scroll, h("div", { class: "col", style: "display:block" }, h("h1", null, c.title || "Untitled"),
+      put(el.scroll, h("div", { class: "col", style: "display:block" }, h("h1", { dir: "auto" }, c.title || "Untitled"),
         h("div", { class: "note" }, h("div", null, text), e.kind === "notfound" ? null : h("button", { class: "btn", type: "button", onclick: () => openReader(c.id, true) }, "Try Again"))));
     } else {
-      put(el.scroll, h("div", { class: "col", style: "display:block" }, h("h1", null, c.title || "Untitled"), h("div", { class: "note" }, spinner(), "Loading chat")));
+      put(el.scroll, h("div", { class: "col", style: "display:block" }, h("h1", { dir: "auto" }, c.title || "Untitled"), h("div", { class: "note" }, spinner(), "Loading chat")));
     }
   };
 
@@ -2293,7 +2382,7 @@
   // Clock app: the current chat sits in the middle, finished ones roll away
   // above, the next ones wait below. Scroll, drag or use the arrow keys on it
   // to look back.
-  const WHEEL = { row: 36, radius: 118, reach: 6 };
+  const WHEEL = { row: 36, radius: 160, reach: 8 };
   WHEEL.step = (2 * Math.atan(WHEEL.row / 2 / WHEEL.radius) * 180) / Math.PI;
   const setText = (node, text) => {
     if (node.textContent !== text) node.textContent = text;
@@ -2496,7 +2585,7 @@
     for (let i = lo; i <= hi; i += 1) {
       let node = v.items.get(i);
       if (!node) {
-        node = h("div", { class: "wi" }, h("span", { class: "g" }), h("span", { class: "v" }), h("span", { class: "ttl" }));
+        node = h("div", { class: "wi" }, h("span", { class: "g" }), h("span", { class: "v" }), h("span", { class: "ttl", dir: "auto" }));
         node.style.transform = `rotateX(${-i * WHEEL.step}deg) translateZ(${WHEEL.radius}px)`;
         v.items.set(i, node);
         v.drum.append(node);
@@ -2994,11 +3083,24 @@
     const rows = ["delete", "archive", "unarchive", "rename"].filter((a) => n[a]).map((a) => h("div", { class: a === "delete" ? "del" : "" },
       h("span", null, ACTION[a].label, a === "delete" ? h("span", { class: "x" }, "Permanent · ChatGPT can't restore deleted chats") : null),
       h("span", { class: "n" }, String(n[a]))));
+    // Counts alone can't catch the wrong chat, so the dialog lists them. Deletes can't be undone, so they come first and open.
+    const review = h("details", { class: "review" },
+      h("summary", null, icon("chevron", 14), `Review the ${plural(jobs.length, "chat")}`),
+      h("div", { class: "items" }, ["delete", "archive", "unarchive", "rename"].filter((a) => n[a]).map((a) => [
+        h("div", { class: `grp${a === "delete" ? " del" : ""}` }, `${ACTION[a].label} · ${n[a]}`),
+        jobs.filter((j) => j.action === a).map((j) => {
+          const c = Data.byId.get(j.id);
+          const name = `${j.title || "Untitled"}${a === "rename" ? ` → ${j.newTitle}` : ""}`;
+          return h("div", { class: "it" }, h("span", { class: "d" }, isoDate(c && c.created)), h("span", { class: "t", dir: "auto", title: name }, name));
+        }),
+      ])));
+    review.open = n.delete > 0;
     const backup = h("input", { type: "checkbox" });
     backup.checked = Store.data.settings.backup;
     const typed = h("input", { type: "text", placeholder: String(n.delete), "aria-label": "Type the number of chats to delete" });
     const body = [
       h("div", { class: "table" }, rows),
+      review,
       h("div", { class: "eta" }, "One change every ", h("span", { class: "num" }, `${gap}s`), " · About ", h("span", { class: "num" }, String(minutes)), minutes === 1 ? " minute" : " minutes"),
       h("p", { class: "hint" }, "If ChatGPT says \"too many requests\", Triage waits as long as it asks and carries on by itself."),
     ];
