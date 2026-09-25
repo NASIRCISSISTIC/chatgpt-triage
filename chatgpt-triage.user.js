@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Triage
 // @namespace    https://github.com/NASIRCISSISTIC/chatgpt-triage
-// @version      1.0.1
+// @version      1.0.2
 // @description  Bulk delete, archive and rename your ChatGPT chats without the "Too many requests" lockout. Read each chat first, queue your changes, and let them run at a safe pace.
 // @author       Nasir Yar Khan
 // @license      MIT
@@ -41,7 +41,9 @@
   // Settings and constants
   // ---------------------------------------------------------------------------
 
-  const VERSION = "1.0.0";
+  // One source for the version: the @version line above, which a userscript manager passes in as GM_info.
+  // Pasted into the console there's no GM_info, so it falls back to this copy.
+  const VERSION = (typeof GM_info !== "undefined" && GM_info.script && GM_info.script.version) || "1.0.2";
   const APP = "chatgpt-triage";
   const HOMEPAGE = "https://github.com/NASIRCISSISTIC/chatgpt-triage";
   // The demo page and the test harness set this to speed up waits. chatgpt.com never does.

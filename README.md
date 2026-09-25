@@ -91,6 +91,7 @@ You'll need to paste it again after reloading the page. Only paste code you've r
 - **Deleting is permanent.** OpenAI [can't restore deleted chats](https://help.openai.com/en/articles/8809935-deleting-and-archiving-chats-in-chatgpt), not even through support. If you're unsure, archive instead; you can unarchive later. Turn on the backup when you delete.
 - **Unofficial.** Triage uses ChatGPT's private web API, the same one chatgpt.com uses. OpenAI can change it at any time. Triage checks the data it gets back and switches changes off if it looks unfamiliar.
 - **Personal accounts.** Triage is built for personal ChatGPT accounts. Team, Business and Enterprise workspaces haven't been tested.
+- **ChatGPT's list can lag.** After an archive or unarchive, ChatGPT's own chat list can take several minutes to catch up, even though the chat itself changed straight away. Triage asks about the chat itself before calling a change failed.
 - **One tab at a time.** Run the queue from one tab. Other ChatGPT tabs and the desktop app share the same request limit, so close them during a long run.
 - **Full-text search is deliberately limited.** Search covers every title and the text of chats you've opened. Downloading every chat just to search it would set off the very limit Triage is built to avoid.
 
