@@ -1120,8 +1120,9 @@
     .list { flex: 1; position: relative; overflow: auto; overscroll-behavior: contain; outline: none; padding: 6px 0 28px; }
     .cursor { position: absolute; top: 0; left: 8px; right: 8px; height: 36px; border-radius: 8px; background: var(--focus); box-shadow: var(--focus-ring); opacity: 0; pointer-events: none; transition: transform .22s var(--ease), height .22s var(--ease), opacity .18s; }
     .rows { position: relative; }
+    .note.more { padding: 16px 24px; }
     .row {
-      position: relative; height: 36px; margin: 0 8px; padding: 0 12px; display: grid; grid-template-columns: 16px 92px minmax(0, 1fr) auto;
+      position: absolute; left: 8px; right: 8px; height: 36px; padding: 0 12px; display: grid; grid-template-columns: 16px 92px minmax(0, 1fr) auto;
       column-gap: 12px; align-items: baseline; align-content: center; border-radius: 8px; transition: background-color .15s, color .15s;
     }
     .row:hover { background: var(--fill); }
@@ -1296,6 +1297,7 @@
     .review .it { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 3px 0; }
     .review .it .d { font: 12px/1.5 var(--mono); color: var(--fg3); font-variant-numeric: tabular-nums; }
     .review .it .t { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .review .all { margin: 4px 0 0 -10px; }
     .modal { width: min(500px, 100%); max-height: calc(100vh - 48px); overflow: auto; padding: 24px; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); animation: rise .32s var(--ease) both; }
     .modal h2 { margin: 0 0 16px; font: 600 18px/1.3 var(--sans); letter-spacing: -.015em; }
     .modal p { margin: 0 0 12px; color: var(--fg2); line-height: 1.55; }
@@ -1413,6 +1415,8 @@
     rowEls: new Map(),
     rowSigs: new Map(),
     shownOrder: null,
+    indexOf: new Map(), // chat id -> position in the list
+    winRaf: 0,
     actsEl: null,
     drawer: null, // "activity" | "network" | null
     menu: null, // { which, el, anchor }
@@ -1637,13 +1641,22 @@
     el.listhead = h("div", { class: "band b2" });
     el.cursor = h("div", { class: "cursor instant", "aria-hidden": "true" });
     el.rows = h("div", { class: "rows" });
+    el.more = h("div", { class: "note more", hidden: true });
     el.list = h("div", {
       class: "list", tabindex: "0", role: "listbox", "aria-label": "Chats", onclick: onListClick,
       onmouseover: (e) => {
         const row = e.target.closest(".row");
         if (row && !(ui.actsEl && row.contains(ui.actsEl))) attachActs(row);
       },
-    }, el.cursor, el.rows);
+      onscroll: () => {
+        if (ui.winRaf) return;
+        ui.winRaf = requestAnimationFrame(() => {
+          ui.winRaf = 0;
+          renderWindow();
+        });
+      },
+    }, el.cursor, el.rows, el.more);
+    if (typeof ResizeObserver === "function") new ResizeObserver(() => renderWindow()).observe(el.list);
     el.left = h("div", { class: "left" },
       h("div", { class: "band b1" },
         h("label", { class: "search" }, icon("search", 16), el.search, h("span", { class: "key" }, "/")),
@@ -2012,6 +2025,10 @@
 
   const selectable = (c) => !Store.data.protect[c.id] && (Store.data.settings.pinnedInSelectAll || !c.pinned);
 
+  // Every row is exactly this tall, which is what makes the virtual list simple.
+  const ROW_H = 36;
+  const ROW_BUFFER = 8; // rows kept on the page above and below the visible ones
+
   ui.renderList = function renderList() {
     const el = ui.el;
     el.list.classList.toggle("selecting", ui.sel.size > 0);
@@ -2060,39 +2077,71 @@
       placeCursor(false);
       return;
     }
-    // When the same chats are listed in the same order (marking, protecting, selecting), only the rows
-    // that changed are rebuilt. A keypress then costs a row or two instead of the whole list.
+    // A virtual list: only the rows in view, plus a few either side, exist on the page, so 3,000 chats
+    // cost about the same as 30. The full order lives in ui.shownOrder; renderWindow() draws the rows.
     const prev = ui.shownOrder;
-    const same = !loadingHere && prev && prev.length === rows.length && rows.every((c, i) => prev[i] === c.id);
-    if (same) {
-      for (const c of rows) {
-        const sig = rowSig(c);
-        if (ui.rowSigs.get(c.id) === sig) continue;
-        const row = rowEl(c);
-        ui.rowEls.get(c.id).replaceWith(row);
-        ui.rowEls.set(c.id, row);
-        ui.rowSigs.set(c.id, sig);
-      }
-    } else {
+    const same = prev && prev.length === rows.length && rows.every((c, i) => prev[i] === c.id);
+    if (!same) {
       dropRows();
-      const frag = document.createDocumentFragment();
-      for (const c of rows) {
-        const row = rowEl(c);
-        ui.rowEls.set(c.id, row);
-        ui.rowSigs.set(c.id, rowSig(c));
-        frag.append(row);
-      }
-      if (loadingHere) frag.append(h("div", { class: "note" }, spinner(), L.waiting ? "Waiting for ChatGPT" : `Loading  ${L.n}${L.total ? ` / ~${L.total}` : ""}`));
-      put(el.rows, frag);
-      ui.shownOrder = loadingHere ? null : ui.order.slice();
+      put(el.rows);
+      ui.shownOrder = ui.order.slice();
+      ui.indexOf = new Map(ui.order.map((id, i) => [id, i]));
     }
-    const hovered = el.rows.querySelector(".row:hover");
-    if (hovered) attachActs(hovered);
-    if (ui.focusId && !ui.rowEls.has(ui.focusId)) ui.focusId = null;
+    el.rows.style.height = `${rows.length * ROW_H}px`;
+    el.more.hidden = !loadingHere;
+    if (loadingHere) put(el.more, spinner(), L.waiting ? "Waiting for ChatGPT" : `Loading  ${L.n}${L.total ? ` / ~${L.total}` : ""}`);
+    if (ui.focusId && !ui.indexOf.has(ui.focusId)) ui.focusId = null;
+    renderWindow();
     ui.fresh.clear();
     placeCursor(false);
     ui.renderStatus();
   };
+
+  // Draws the rows in view (plus a few either side, and the highlighted one) and removes the rest.
+  // A row that hasn't changed is left alone; a row whose look changed is rebuilt in place.
+  function renderWindow() {
+    const el = ui.el;
+    const order = ui.shownOrder;
+    if (!order || !order.length) return;
+    const n = order.length;
+    const top = el.list.scrollTop - el.rows.offsetTop;
+    const first = clamp(Math.floor(top / ROW_H) - ROW_BUFFER, 0, n - 1);
+    const last = clamp(Math.ceil((top + (el.list.clientHeight || 800)) / ROW_H) + ROW_BUFFER, 0, n - 1);
+    const want = [];
+    for (let i = first; i <= last; i += 1) want.push(i);
+    // Screen readers point at the highlighted row, so it stays on the page even when scrolled away.
+    const fi = ui.focusId ? ui.indexOf.get(ui.focusId) : undefined;
+    if (fi !== undefined && (fi < first || fi > last)) want.push(fi);
+    want.sort((a, b) => a - b);
+    const keep = new Set(want.map((i) => order[i]));
+    for (const [id, node] of ui.rowEls) {
+      if (keep.has(id)) continue;
+      node.remove();
+      ui.rowEls.delete(id);
+      ui.rowSigs.delete(id);
+    }
+    let before = null;
+    for (const i of want) {
+      const id = order[i];
+      const c = Data.byId.get(id);
+      if (!c) continue;
+      const sig = rowSig(c);
+      let node = ui.rowEls.get(id);
+      if (!node || ui.rowSigs.get(id) !== sig) {
+        const row = rowEl(c, i, n);
+        if (node) node.replaceWith(row);
+        else if (before) before.after(row);
+        else el.rows.prepend(row);
+        node = row;
+        ui.rowEls.set(id, row);
+        ui.rowSigs.set(id, sig);
+      }
+      before = node;
+    }
+    const hovered = el.rows.querySelector(".row:hover");
+    if (hovered && !(ui.actsEl && hovered.contains(ui.actsEl))) attachActs(hovered);
+  }
+  ui.renderWindow = renderWindow;
 
   function renderListHead(rows) {
     const pickable = rows.filter(selectable);
@@ -2157,7 +2206,7 @@
     row.querySelector(".end").append(ui.actsEl);
   }
 
-  function rowEl(c) {
+  function rowEl(c, i = 0, n = 0) {
     const d = Store.data;
     const mark = d.marks[c.id];
     const prot = Boolean(d.protect[c.id]);
@@ -2180,7 +2229,10 @@
     else if (mark) tag = h("span", { class: `mark ${mark.a}${fresh ? " fresh" : ""}` }, mark.a === "delete" ? null : icon(ACTION[mark.a].icon, 13), ACTION[mark.a].label);
     // The new name sits right after the old one, so the pair reads as one change.
     const renameTo = !prot && mark && mark.a === "rename" ? mark.t : null;
-    return h("div", { class: cls.join(" "), id: `r-${c.id}`, "data-id": c.id, role: "option", "aria-selected": String(c.id === ui.focusId) },
+    return h("div", {
+      class: cls.join(" "), id: `r-${c.id}`, "data-id": c.id, style: `top:${i * ROW_H}px`,
+      role: "option", "aria-selected": String(c.id === ui.focusId), "aria-posinset": i + 1, "aria-setsize": n,
+    },
       h("span", { class: "gut" }, d.seen[c.id] ? null : h("span", { class: "dot", title: "Not opened yet" }), cb),
       h("span", { class: "date", title: c.created ? new Date(c.created).toLocaleString() : "" }, isoDate(c.created)),
       h("span", { class: "title", dir: "auto", title: renameTo ? `${c.title || "Untitled"} → ${renameTo}` : c.title || "Untitled" },
@@ -2198,15 +2250,19 @@
   function placeCursor(animate) {
     const cur = ui.el.cursor;
     if (!cur) return;
-    const row = ui.focusId ? ui.rowEls.get(ui.focusId) : null;
-    if (!row || !row.offsetHeight) {
+    const i = ui.focusId && ui.shownOrder ? ui.indexOf.get(ui.focusId) : undefined;
+    if (i === undefined) {
       cur.style.opacity = "0";
       return;
     }
-    const snap = !animate || cur.style.opacity !== "1";
+    const y = i * ROW_H + ui.el.rows.offsetTop;
+    // Glide between nearby rows; jump straight there when the move is longer than a screen (Home, End).
+    const far = Math.abs(y - (ui.cursorY || 0)) > ui.el.list.clientHeight;
+    const snap = !animate || far || cur.style.opacity !== "1";
+    ui.cursorY = y;
     cur.classList.toggle("instant", snap);
-    cur.style.transform = `translateY(${row.offsetTop + ui.el.rows.offsetTop}px)`;
-    cur.style.height = `${row.offsetHeight}px`;
+    cur.style.transform = `translateY(${y}px)`;
+    cur.style.height = `${ROW_H}px`;
     cur.style.opacity = "1";
     if (snap) requestAnimationFrame(() => cur.classList.remove("instant"));
   }
@@ -2784,22 +2840,24 @@
   }
 
   function setFocus(id, scroll = true) {
-    const old = ui.focusId && ui.rowEls.get(ui.focusId);
-    if (old) {
-      old.classList.remove("focus");
-      old.setAttribute("aria-selected", "false");
-    }
     ui.focusId = id;
+    const i = id ? ui.indexOf.get(id) : undefined;
+    if (scroll && i !== undefined) scrollToRow(i);
+    // Redraws the old and new highlighted rows, and makes sure the new one is on the page.
+    renderWindow();
     const row = id && ui.rowEls.get(id);
-    if (row) {
-      row.classList.add("focus");
-      row.setAttribute("aria-selected", "true");
-      if (scroll) row.scrollIntoView({ block: "nearest" });
-    }
     // Screen readers follow the highlighted row while focus stays on the list.
     if (row) ui.el.list.setAttribute("aria-activedescendant", row.id);
     else ui.el.list.removeAttribute("aria-activedescendant");
     placeCursor(true);
+  }
+
+  // Scrolls just enough to show a row, like scrollIntoView({ block: "nearest" }) on a row that may not exist yet.
+  function scrollToRow(i) {
+    const list = ui.el.list;
+    const top = ui.el.rows.offsetTop + i * ROW_H;
+    if (top - 6 < list.scrollTop) list.scrollTop = top - 6;
+    else if (top + ROW_H + 6 > list.scrollTop + list.clientHeight) list.scrollTop = top + ROW_H + 6 - list.clientHeight;
   }
 
   function move(delta, extend) {
@@ -3094,14 +3152,27 @@
     // Counts alone can't catch the wrong chat, so the dialog lists them. Deletes can't be undone, so they come first and open.
     const review = h("details", { class: "review" },
       h("summary", null, icon("chevron", 14), `Review the ${plural(jobs.length, "chat")}`),
-      h("div", { class: "items" }, ["delete", "archive", "unarchive", "rename"].filter((a) => n[a]).map((a) => [
-        h("div", { class: `grp${a === "delete" ? " del" : ""}` }, `${ACTION[a].label} · ${n[a]}`),
-        jobs.filter((j) => j.action === a).map((j) => {
+      h("div", { class: "items" }, ["delete", "archive", "unarchive", "rename"].filter((a) => n[a]).map((a) => {
+        const group = jobs.filter((j) => j.action === a);
+        const item = (j) => {
           const c = Data.byId.get(j.id);
           const name = `${j.title || "Untitled"}${a === "rename" ? ` → ${j.newTitle}` : ""}`;
           return h("div", { class: "it" }, h("span", { class: "d" }, isoDate(c && c.created)), h("span", { class: "t", dir: "auto", title: name }, name));
-        }),
-      ])));
+        };
+        // Thousands of names would slow the dialog down, so long groups show 100 until asked.
+        const box = h("div", null, group.slice(0, 100).map(item));
+        if (group.length > 100) {
+          const more = h("button", {
+            class: "btn quiet all", type: "button",
+            onclick: () => {
+              more.remove();
+              box.append(...group.slice(100).map(item));
+            },
+          }, `Show All ${group.length}`);
+          box.append(more);
+        }
+        return [h("div", { class: `grp${a === "delete" ? " del" : ""}` }, `${ACTION[a].label} · ${n[a]}`), box];
+      })));
     review.open = n.delete > 0;
     const backup = h("input", { type: "checkbox" });
     backup.checked = Store.data.settings.backup;

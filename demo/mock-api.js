@@ -12,13 +12,16 @@
  *   ?expire=30           rotate the access token every 30 s, so stale tokens get 401
  *   ?fail=0.2            make 20% of changes fail with HTTP 500
  *   ?ghost=0.3           make 30% of changes report success but not take effect
+ *   ?chats=3000          a bigger account, to try long lists
  */
 (function mockChatGPT() {
   "use strict";
 
-  const DB_KEY = "triage-demo:db";
   const WIPE_KEY = "triage-demo:wipe";
   const params = new URLSearchParams(location.search);
+  // ?chats=3000 grows the account, to try Triage on a big history. Each size is its own saved account.
+  const CHATS = Math.min(20000, Math.max(0, Number(params.get("chats")) || 0));
+  const DB_KEY = CHATS ? `triage-demo:db:${CHATS}` : "triage-demo:db";
 
   function forgetTriage() {
     for (const k of Object.keys(localStorage)) if (k.startsWith("chatgpt-triage:")) localStorage.removeItem(k);
@@ -122,6 +125,12 @@
     // A few pinned chats and some that are already archived.
     for (let i = 0; i < 3; i += 1) convs[Math.floor(r() * 200)].pinned_time = new Date((end - i * 86400) * 1000).toISOString();
     for (let i = 0; i < 18; i += 1) convs[200 + i].is_archived = true;
+    for (let k = 2; convs.length < CHATS; k += 1) {
+      for (const t of TOPICS) {
+        if (convs.length >= CHATS) break;
+        add(`${t} (${k})`);
+      }
+    }
     return { version: 1, token: "demo-token-1", tokenIssued: Date.now(), convs };
   }
 
