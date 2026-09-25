@@ -105,6 +105,7 @@ The [`demo/`](demo) folder is a stand-in for chatgpt.com with a fake account of 
 | `?expire=30` | Sign-in tokens that expire every 30 seconds |
 | `?fail=0.2` | 20% of changes failing with a server error |
 | `?ghost=0.3` | 30% of changes reporting success without taking effect |
+| `?listlag=20` | The chat list still showing archived and deleted chats for 20 seconds, as chatgpt.com does |
 | `?chats=3000` | A bigger account, to try Triage on a long history |
 | `?speed=50` | Every wait, including ChatGPT's, runs 50 times faster. The demo defaults to 4× and says so in its footer; `?speed=1` runs at real speed. |
 

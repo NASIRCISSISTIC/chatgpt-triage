@@ -13,6 +13,7 @@
  *   ?fail=0.2            make 20% of changes fail with HTTP 500
  *   ?ghost=0.3           make 30% of changes report success but not take effect
  *   ?chats=3000          a bigger account, to try long lists
+ *   ?listlag=20          the chat list keeps showing archived and deleted chats for 20 s, like chatgpt.com
  */
 (function mockChatGPT() {
   "use strict";
@@ -43,6 +44,10 @@
   const FAIL = Math.min(1, Number(params.get("fail")) || 0);
   // ?ghost=0.3 makes 30% of changes report success without taking effect (like chats that reappear).
   const GHOST = Math.min(1, Number(params.get("ghost")) || 0);
+  // ?listlag=20: like the real chatgpt.com, the list shows the old state of a changed chat for a while,
+  // even though the chat itself has changed. Found in the first live test (2026-09-25).
+  const LIST_LAG = ((Number(params.get("listlag")) || 0) * 1000) / SPEED;
+  const lagged = new Map(); // id -> { is_visible, is_archived, until }
 
   const stats = { requests: 0, limited: 0, unauthorized: 0, failed: 0, byPath: {} };
   const recent = [];
@@ -288,8 +293,12 @@
       const offset = Number(url.searchParams.get("offset")) || 0;
       const limit = Math.min(100, Number(url.searchParams.get("limit")) || 28);
       const archived = url.searchParams.get("is_archived") === "true";
+      const listed = (c) => {
+        const old = lagged.get(c.id);
+        return old && Date.now() < old.until ? old : c;
+      };
       const rows = db.convs
-        .filter((c) => c.is_visible && c.is_archived === archived)
+        .filter((c) => listed(c).is_visible && listed(c).is_archived === archived)
         .sort((a, b) => b.updated - a.updated);
       return json(200, { items: rows.slice(offset, offset + limit).map(listItem), total: rows.length, limit, offset, has_missing_conversations: false });
     }
@@ -306,6 +315,9 @@
         }
         if (GHOST && Math.random() < GHOST) return json(200, { success: true });
         const body = JSON.parse(init.body || "{}");
+        if (LIST_LAG && (body.is_visible === false || typeof body.is_archived === "boolean")) {
+          lagged.set(c.id, { is_visible: c.is_visible, is_archived: c.is_archived, until: Date.now() + LIST_LAG });
+        }
         if (body.is_visible === false) c.is_visible = false;
         if (typeof body.is_archived === "boolean") c.is_archived = body.is_archived;
         if (typeof body.title === "string") c.title = body.title;

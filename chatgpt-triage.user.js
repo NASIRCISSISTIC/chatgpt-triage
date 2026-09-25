@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Triage
 // @namespace    https://github.com/NASIRCISSISTIC/chatgpt-triage
-// @version      1.0.0
+// @version      1.0.1
 // @description  Bulk delete, archive and rename your ChatGPT chats without the "Too many requests" lockout. Read each chat first, queue your changes, and let them run at a safe pace.
 // @author       Nasir Yar Khan
 // @license      MIT
@@ -158,7 +158,11 @@
     setTimeout(() => URL.revokeObjectURL(url), 30 * SEC);
   }
 
-  const fileStamp = () => new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+  const fileStamp = () => {
+    const d = new Date();
+    const two = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}-${two(d.getHours())}-${two(d.getMinutes())}`;
+  };
 
   function csv(rows) {
     const cell = (v) => {
@@ -873,18 +877,41 @@
         r.note = `Couldn't double-check: ${e.message}`;
         return;
       }
+      // ChatGPT's list can lag behind a change: an archived chat may stay listed for a while even
+      // though the chat itself is archived. So a chat that's still listed is checked on its own
+      // before it's called a failure.
       const present = new Set(fresh.map((c) => c.id));
-      for (const res of gone) {
-        if (!present.has(res.id)) continue;
+      const suspects = gone.filter((res) => present.has(res.id));
+      const stuck = new Set();
+      for (let k = 0; k < suspects.length; k += 1) {
+        const res = suspects[k];
+        r.note = `Double-checking ${suspects.length === 1 ? "one chat" : `chat ${k + 1} of ${suspects.length}`} directly.`;
+        ui.renderRun(true);
+        if (await changeStuck(res)) {
+          stuck.add(res.id);
+          continue;
+        }
         res.status = "unconfirmed";
-        res.note = "Still in your chat list afterwards. It's marked again so you can retry.";
+        res.note = "ChatGPT still shows this chat unchanged. It's marked again so you can retry.";
         Store.data.marks[res.id] = { a: res.action, title: res.title, at: now() };
       }
-      Data.active = fresh;
+      Data.active = fresh.filter((c) => !stuck.has(c.id));
       Data.index();
       r.note = "";
     },
   };
+
+  // Asks ChatGPT about one chat: did the delete or archive really happen?
+  async function changeStuck(res) {
+    try {
+      const data = await Api.request("GET", `/backend-api/conversation/${encodeURIComponent(res.id)}`);
+      if (res.action === "archive") return Boolean(data && data.is_archived === true);
+      return Boolean(data && data.is_visible === false);
+    } catch (e) {
+      // A deleted chat can't be loaded any more. Anything else: can't tell, so it's flagged for a look.
+      return e.kind === "notfound" && res.action === "delete";
+    }
+  }
 
   function writeChange(job) {
     const body = {
@@ -2587,7 +2614,7 @@
     else if (finished) {
       const bits = [`${plural(done, "change")} made`];
       if (failed) bits.push(`${failed} failed`);
-      if (unconfirmed) bits.push(`${unconfirmed} didn't stick and are marked again`);
+      if (unconfirmed) bits.push(`${unconfirmed} didn't stick and ${unconfirmed === 1 ? "is" : "are"} marked again`);
       if (r.status === "stopped" && r.i < total) bits.push(`${total - r.i} not reached, still marked`);
       say = `${bits.join(". ")}.`;
     }
