@@ -2,7 +2,7 @@
 // @name         Triage
 // @namespace    https://github.com/NASIRCISSISTIC/chatgpt-triage
 // @version      1.0.0
-// @description  Read every chat before you decide. Queue deletes, archives and renames, and let them run at a pace ChatGPT tolerates.
+// @description  Bulk delete, archive and rename your ChatGPT chats without the "Too many requests" lockout. Read each chat first, queue your changes, and let them run at a safe pace.
 // @author       Nasir Yar Khan
 // @license      MIT
 // @homepageURL  https://github.com/NASIRCISSISTIC/chatgpt-triage
