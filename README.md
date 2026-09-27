@@ -47,6 +47,8 @@ Deleting chats in ChatGPT's own sidebar sets off a burst of extra requests to re
 
 Updates install themselves through your userscript manager.
 
+Triage is also listed on [Greasy Fork](https://greasyfork.org/en/scripts/597323-triage) and [OpenUserJS](https://openuserjs.org/scripts/NASIRCISSISTIC/Triage). Both install this same file and pick up every update from here.
+
 ### Without installing anything
 
 1. Open [chatgpt.com](https://chatgpt.com) and sign in.
