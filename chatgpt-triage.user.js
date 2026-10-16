@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Triage
 // @namespace    https://github.com/NASIRCISSISTIC/chatgpt-triage
-// @version      1.0.2
-// @description  Bulk delete, archive and rename your ChatGPT chats without the "Too many requests" lockout. Read each chat first, queue your changes, and let them run at a safe pace.
+// @version      1.1.0
+// @description  Bulk delete, archive, rename and move your ChatGPT chats into projects without the "Too many requests" lockout. Read each chat first, queue your changes, and let them run at a safe pace.
 // @author       Nasir Yar Khan
 // @license      MIT
 // @homepageURL  https://github.com/NASIRCISSISTIC/chatgpt-triage
@@ -43,7 +43,7 @@
 
   // One source for the version: the @version line above, which a userscript manager passes in as GM_info.
   // Pasted into the console there's no GM_info, so it falls back to this copy.
-  const VERSION = (typeof GM_info !== "undefined" && GM_info.script && GM_info.script.version) || "1.0.2";
+  const VERSION = (typeof GM_info !== "undefined" && GM_info.script && GM_info.script.version) || "1.1.0";
   const APP = "chatgpt-triage";
   const HOMEPAGE = "https://github.com/NASIRCISSISTIC/chatgpt-triage";
   // The demo page and the test harness set this to speed up waits. chatgpt.com never does.
@@ -82,6 +82,7 @@
     archive: { label: "Archive", verb: "Archiving", past: "Archived", key: "A", icon: "archive" },
     unarchive: { label: "Unarchive", verb: "Unarchiving", past: "Unarchived", key: "U", icon: "restore" },
     rename: { label: "Rename", verb: "Renaming", past: "Renamed", key: "R", icon: "pencil" },
+    move: { label: "Move", verb: "Moving", past: "Moved", key: "M", icon: "folder" },
     protect: { label: "Protect", verb: "", past: "", key: "P", icon: "shield" },
   };
 
@@ -199,6 +200,7 @@
     archive: "M3 4h18v4H3zM5 8v12h14V8M10 12h4",
     restore: "M9 14 4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3",
     pencil: "M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4",
+    folder: "M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z",
     shield: "M12 3 4 6v6c0 5 3.4 8 8 9 4.6-1 8-4 8-9V6z",
     pin: "M9 4h6l-1 5 3 3v2H7v-2l3-3zM12 14v6",
     x: "M6 6l12 12M18 6 6 18",
@@ -244,7 +246,7 @@
   // ---------------------------------------------------------------------------
 
   const DEFAULT_STATE = () => ({
-    marks: {}, // id -> { a: action, title, t?: new title, at }
+    marks: {}, // id -> { a: action, title, t?: new title, p?: project id ("" = no project), pn?: project name, at }
     protect: {}, // id -> { title, at }
     seen: {}, // id -> 1
     settings: { gap: CFG.gapDefault, backup: true, pinnedInSelectAll: false },
@@ -422,6 +424,8 @@
     archivedLoaded: false,
     loading: null, // { scope, n, total, waiting }
     compatOk: true,
+    projects: null, // [{ id, name }] from ChatGPT, once loaded
+    projectsError: null,
     index() {
       this.byId = new Map();
       for (const c of this.active) this.byId.set(c.id, c);
@@ -500,6 +504,65 @@
     return [...found.values()];
   }
 
+  // The user's ChatGPT projects, for "Move to project". ChatGPT keeps them under the code name "snorlax".
+  async function loadProjects() {
+    const found = new Map();
+    let cursor = null;
+    let tries = 0;
+    for (let page = 0; page < 20; page += 1) {
+      const query = `conversations_per_gizmo=0&limit=20&owned_only=false${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+      let data;
+      try {
+        data = await Api.request("GET", `/backend-api/gizmos/snorlax/sidebar?${query}`);
+      } catch (e) {
+        if (e.kind === "ratelimit" || e.kind === "cooldown") {
+          await waitForCooldown();
+          page -= 1;
+          continue;
+        }
+        if (e.kind === "transient" && tries < CFG.transientBackoff.length) {
+          await sleep(scaled(CFG.transientBackoff[tries]));
+          tries += 1;
+          page -= 1;
+          continue;
+        }
+        throw e;
+      }
+      tries = 0;
+      if (!data || !Array.isArray(data.items)) throw new TriageError("compat", "ChatGPT's project list looks different from what Triage expects, so moving chats is switched off.");
+      for (const item of data.items) {
+        const g = item && item.gizmo && item.gizmo.gizmo;
+        if (!g || typeof g.id !== "string" || !g.id.startsWith("g-p-")) continue;
+        const name = g.display && typeof g.display.name === "string" && g.display.name.trim();
+        found.set(g.id, { id: g.id, name: name || "Untitled Project" });
+      }
+      cursor = data.cursor;
+      if (!cursor || !data.items.length) break;
+    }
+    return [...found.values()];
+  }
+
+  async function refreshProjects() {
+    try {
+      Data.projects = await loadProjects();
+      Data.projectsError = null;
+    } catch (e) {
+      Data.projectsError = e.message;
+    }
+    if (ui.booted && !Runner.isActive()) {
+      ui.renderList();
+      ui.renderReader();
+    }
+  }
+
+  // A project's name for showing. Long names are cut, so a chip never crowds out the chat's title.
+  function projectName(id, max = 0) {
+    if (!id) return "No Project";
+    const p = Data.projects && Data.projects.find((x) => x.id === id);
+    const name = p ? p.name : "Project";
+    return max && name.length > max ? `${name.slice(0, max - 1).trimEnd()}…` : name;
+  }
+
   function textOf(content) {
     if (!content || !["text", "multimodal_text"].includes(content.content_type)) return "";
     const parts = Array.isArray(content.parts) ? content.parts : [];
@@ -556,10 +619,6 @@
     for (const c of chats) {
       out.push(`---`, ``, `## ${c.title || "Untitled"}`, ``);
       out.push(`Created ${c.created ? new Date(c.created).toLocaleString() : "unknown"} · https://chatgpt.com/c/${c.id}`, ``);
-      if (c.error) {
-        out.push(`_Couldn't back up this chat: ${c.error}_`, ``);
-        continue;
-      }
       for (const m of c.messages) out.push(`**${m.role === "user" ? "You" : "ChatGPT"}**`, ``, m.text, ``);
     }
     return out.join("\n");
@@ -574,11 +633,13 @@
     if (Store.data.protect[c.id]) return "That chat is protected. Press P to unprotect it first.";
     if (action === "archive" && c.archived) return "That chat is already archived.";
     if (action === "unarchive" && !c.archived) return "Only archived chats can be unarchived.";
+    if (action === "move" && c.archived) return "Archived chats can't be moved. Unarchive it first.";
+    if (action === "move" && c.gptId) return "Chats with a custom GPT can't be moved into a project.";
     return null;
   }
 
   function queueCounts() {
-    const q = { delete: 0, archive: 0, unarchive: 0, rename: 0, total: 0 };
+    const q = { delete: 0, archive: 0, unarchive: 0, rename: 0, move: 0, total: 0 };
     for (const [id, m] of Object.entries(Store.data.marks)) {
       if (Store.data.protect[id] || !(m.a in q)) continue;
       q[m.a] += 1;
@@ -627,7 +688,12 @@
         .filter(([id, m]) => !Store.data.protect[id] && ACTION[m.a] && m.a !== "protect")
         .map(([id, m]) => {
           const c = Data.byId.get(id);
-          return { id, action: m.a, newTitle: m.t || null, title: c ? c.title : m.title || "" };
+          const job = { id, action: m.a, newTitle: m.t || null, title: c ? c.title : m.title || "" };
+          if (m.a === "move") {
+            job.project = m.p || "";
+            job.projectName = m.pn || "";
+          }
+          return job;
         })
         .sort((a, b) => (order.has(a.id) ? order.get(a.id) : 1e9) - (order.has(b.id) ? order.get(b.id) : 1e9));
     },
@@ -653,6 +719,7 @@
         current: null,
       };
       this.backup = [];
+      this.backupRun = null;
       Store.flush();
       note(`Started: ${plural(jobs.length, "change")}.`);
       this.loop();
@@ -708,7 +775,7 @@
     },
 
     record(job, status, detail = "") {
-      this.run.results.push({ id: job.id, action: job.action, title: job.title, newTitle: job.newTitle, status, note: detail, at: now() });
+      this.run.results.push({ id: job.id, action: job.action, title: job.title, newTitle: job.newTitle, project: job.project, projectName: job.projectName, status, note: detail, at: now() });
     },
 
     async loop() {
@@ -722,6 +789,13 @@
       try {
         if (r.phase === "backup") {
           await this.doBackup(r, wake.signal);
+          if (this.backup.length) {
+            // Nothing is deleted until the backup is saved. The run card asks for it.
+            r.phase = "save";
+            set("saving");
+            Store.flush();
+            return;
+          }
           r.phase = "write";
           set("running");
           Store.flush();
@@ -730,6 +804,15 @@
           if (wake.signal.aborted) return;
           const job = r.jobs[r.i];
           r.current = job.id;
+          // A chat that couldn't be backed up isn't deleted. It stays marked, so it can be tried again.
+          const held = r.held && r.held[job.id];
+          if (held && job.action === "delete") {
+            this.record(job, "held", `Not deleted: Triage couldn't back it up. ${/[.!?]$/.test(held) ? held : `${held}.`} It's still marked.`);
+            r.i += 1;
+            Store.save();
+            ui.renderAll();
+            continue;
+          }
           if (Api.cooldownLeft() > 0) {
             set("waiting");
             r.nextAt = 0;
@@ -816,10 +899,12 @@
       }
     },
 
-    // Saves a readable copy of every chat about to be deleted, before anything is deleted.
+    // Reads every chat about to be deleted, before anything is deleted. A chat that can't be read is
+    // held back from the delete, so a failed backup never costs a chat.
     async doBackup(r, signal) {
       const targets = r.jobs.filter((j) => j.action === "delete");
       const out = [];
+      const held = {};
       let tries = 0;
       for (let k = 0; k < targets.length; k += 1) {
         if (signal.aborted) throw new TriageError("aborted", "Stopped.");
@@ -851,22 +936,69 @@
             continue;
           }
           if (e.kind === "auth") throw e;
-          if (e.kind !== "notfound") out.push({ id: job.id, title: job.title, created: 0, error: e.message });
+          tries = 0;
+          // Already gone: nothing to back up, and the delete step reports it.
+          if (e.kind === "notfound") continue;
+          held[job.id] = e.message || "unknown error";
         }
       }
       this.backup = out;
+      this.backupRun = r.id;
+      r.held = held;
       r.note = "";
       r.backupCount = out.length;
-      if (out.length) {
-        download(`chatgpt-triage-backup-${fileStamp()}.md`, toMarkdown(out), "text/markdown");
-        note(`Backed up ${plural(out.length, "chat")} to your Downloads folder.`);
-      }
+      const kept = Object.keys(held).length;
+      if (kept) note(`Couldn't back up ${plural(kept, "chat")}, so ${kept === 1 ? "it" : "they"} won't be deleted.`);
     },
 
-    // Reloads the list once at the end and checks that deleted and archived chats are really gone.
+    // Saves the backup where you choose, then starts deleting. Runs from a click, which the save dialog needs.
+    // Where the browser has a save dialog (Chrome, Edge), Triage knows the file was written. Elsewhere it
+    // downloads the file and waits for you to say it's there.
+    async saveBackup() {
+      const r = this.run;
+      if (!r || r.status !== "saving" || this.backupRun !== r.id || !this.backup.length) return;
+      const name = `chatgpt-triage-backup-${fileStamp()}.md`;
+      const text = toMarkdown(this.backup);
+      if (typeof window.showSaveFilePicker === "function" && !r.backupDownloaded) {
+        try {
+          const handle = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: "Markdown", accept: { "text/markdown": [".md"] } }] });
+          const file = await handle.createWritable();
+          await file.write(text);
+          await file.close();
+          this.backupSaved(handle.name || name);
+          return;
+        } catch (e) {
+          if (e && e.name === "AbortError") {
+            ui.toast("The backup wasn't saved, so nothing has been deleted.");
+            return;
+          }
+          // The save dialog isn't allowed here. Fall back to a normal download.
+        }
+      }
+      download(name, text, "text/markdown");
+      r.backupDownloaded = name;
+      Store.flush();
+      ui.renderAll();
+    },
+
+    backupSaved(name) {
+      const r = this.run;
+      if (!r || r.status !== "saving") return;
+      r.backupFile = name;
+      note(`Saved the backup of ${plural(this.backup.length, "chat")} as ${name}.`);
+      r.phase = "write";
+      r.status = "running";
+      r.owner = this.tabId;
+      Store.flush();
+      this.loop();
+    },
+
+    // Reloads the list once at the end and checks that deleted and archived chats are really gone,
+    // and that moved chats are in their new project.
     async verify(r) {
       const gone = r.results.filter((x) => x.status === "done" && (x.action === "delete" || x.action === "archive"));
-      if (!gone.length) return;
+      const moved = r.results.filter((x) => x.status === "done" && x.action === "move");
+      if (!gone.length && !moved.length) return;
       r.note = "Double-checking with ChatGPT.";
       ui.renderRun(true);
       let fresh;
@@ -882,8 +1014,11 @@
       // ChatGPT's list can lag behind a change: an archived chat may stay listed for a while even
       // though the chat itself is archived. So a chat that's still listed is checked on its own
       // before it's called a failure.
-      const present = new Set(fresh.map((c) => c.id));
-      const suspects = gone.filter((res) => present.has(res.id));
+      const listed = new Map(fresh.map((c) => [c.id, c]));
+      const suspects = [
+        ...gone.filter((res) => listed.has(res.id)),
+        ...moved.filter((res) => listed.has(res.id) && (listed.get(res.id).projectId || "") !== (res.project || "")),
+      ];
       const stuck = new Set();
       for (let k = 0; k < suspects.length; k += 1) {
         const res = suspects[k];
@@ -895,9 +1030,14 @@
         }
         res.status = "unconfirmed";
         res.note = "ChatGPT still shows this chat unchanged. It's marked again so you can retry.";
-        Store.data.marks[res.id] = { a: res.action, title: res.title, at: now() };
+        Store.data.marks[res.id] = res.action === "move"
+          ? { a: "move", title: res.title, p: res.project || "", pn: res.projectName || "", at: now() }
+          : { a: res.action, title: res.title, at: now() };
       }
-      Data.active = fresh.filter((c) => !stuck.has(c.id));
+      // A change that stuck but hasn't reached the list yet: show the chat as it really is.
+      const movedTo = new Map(moved.map((res) => [res.id, res.project || null]));
+      Data.active = fresh.filter((c) => !(stuck.has(c.id) && !movedTo.has(c.id)));
+      for (const c of Data.active) if (stuck.has(c.id) && movedTo.has(c.id)) c.projectId = movedTo.get(c.id);
       Data.index();
       r.note = "";
     },
@@ -908,6 +1048,7 @@
     try {
       const data = await Api.request("GET", `/backend-api/conversation/${encodeURIComponent(res.id)}`);
       if (res.action === "archive") return Boolean(data && data.is_archived === true);
+      if (res.action === "move") return Boolean(data) && (data.gizmo_id || "") === (res.project || "");
       return Boolean(data && data.is_visible === false);
     } catch (e) {
       // A deleted chat can't be loaded any more. Anything else: can't tell, so it's flagged for a look.
@@ -921,6 +1062,8 @@
       archive: { is_archived: true },
       unarchive: { is_archived: false },
       rename: { title: job.newTitle },
+      // The same request ChatGPT's own "Move to project" sends; an empty id takes a chat out of its project.
+      move: { gizmo_id: job.project || "" },
     }[job.action];
     if (!body) return Promise.reject(new TriageError("http", `Unknown action ${job.action}.`));
     return Api.request("PATCH", `/backend-api/conversation/${encodeURIComponent(job.id)}`, { body });
@@ -945,6 +1088,9 @@
       c.title = job.newTitle;
       const conv = cache.get(c.id);
       if (conv) conv.title = job.newTitle;
+    } else if (job.action === "move") {
+      c.projectId = job.project || null;
+      c.updated = now(); // ChatGPT counts a move as using the chat
     }
     Data.index();
     if (ui.readerId === c.id && (job.action === "delete" || job.action === "archive" || job.action === "unarchive")) ui.readerId = null;
@@ -1327,6 +1473,13 @@
     .review .it .d { font: 12px/1.5 var(--mono); color: var(--fg3); font-variant-numeric: tabular-nums; }
     .review .it .t { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     .review .all { margin: 4px 0 0 -10px; }
+    .picks { max-height: 288px; overflow: auto; margin: 4px -10px 0; }
+    .picks .opt { width: 100%; height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; cursor: pointer; text-align: left; color: var(--fg); }
+    .picks .opt:hover, .picks .opt:focus-visible { background: var(--fill); outline: none; }
+    .picks .opt svg { color: var(--fg3); }
+    .picks .opt .nm { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .picks .opt .cur { font-size: 12px; color: var(--fg3); }
+    .picks .none { padding: 10px; color: var(--fg3); }
     .modal { width: min(500px, 100%); max-height: calc(100vh - 48px); overflow: auto; padding: 24px; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); animation: rise .32s var(--ease) both; }
     .modal h2 { margin: 0 0 16px; font: 600 18px/1.3 var(--sans); letter-spacing: -.015em; }
     .modal p { margin: 0 0 12px; color: var(--fg2); line-height: 1.55; }
@@ -1385,6 +1538,8 @@
       /* No keyboard on a phone: drop the shortcut hints so the reader's actions fit. */
       .reader .b1 .key, .search .key { display: none; }
       .reader .b1 .lbl { display: none; }
+      /* The selection's buttons scroll sideways instead of being cut off. */
+      .left .b2 .grp { overflow-x: auto; scrollbar-width: none; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
@@ -1848,6 +2003,14 @@
     }
     Store.open(Api.accountId);
     const r = Store.data.run;
+    // The backup lives in the tab's memory until it's saved. After a reload it's gone, so read the chats again.
+    if (r && r.status === "saving") {
+      r.status = "paused";
+      r.phase = "backup";
+      delete r.backupDownloaded;
+      r.note = "The page reloaded before the backup was saved, so Triage will back the chats up again. Nothing has been deleted.";
+      Store.flush();
+    }
     if (r && ACTIVE.includes(r.status)) {
       if (r.owner !== Runner.tabId && now() - (r.beat || 0) < CFG.staleBeat) {
         ui.lockedElsewhere = true;
@@ -1858,6 +2021,7 @@
       }
     }
     await loadActive();
+    if (!ui.fatal) await refreshProjects();
   }
 
   async function loadActive() {
@@ -1908,6 +2072,7 @@
       Data.archivedLoaded = false;
       await loadArchived();
     }
+    await refreshProjects();
   }
 
   // ---------------------------------------------------------------------------
@@ -1988,7 +2153,7 @@
   ui.renderTop = function renderTop() {
     const q = queueCounts();
     const parts = [];
-    for (const a of ["delete", "archive", "unarchive", "rename"]) {
+    for (const a of ["delete", "archive", "unarchive", "rename", "move"]) {
       if (q[a]) parts.push(h("span", { class: `q-${a}` }, ACTION[a].label, h("b", null, String(q[a]))));
     }
     put(ui.el.queue, parts.length ? parts : h("span", null, "Queue Empty"));
@@ -2191,6 +2356,7 @@
       group = h("div", { class: "grp" },
         bulkBtn("delete"),
         archivedScope ? bulkBtn("unarchive") : bulkBtn("archive"),
+        archivedScope ? null : bulkBtn("move"),
         h("button", { class: "btn", type: "button", title: "Protect the selected chats (P)", onclick: () => applyAction("protect", selectedChats()) }, "Protect"),
         h("button", { class: "btn quiet", type: "button", title: "Remove queued changes from the selected chats (C)", onclick: () => applyAction("clear", selectedChats()) }, "Clear"),
         h("button", { class: "btn quiet", type: "button", title: "Select the shown chats that aren't selected", onclick: invertSelection }, "Invert"),
@@ -2206,16 +2372,17 @@
 
   function bulkBtn(action) {
     const a = ACTION[action];
-    return h("button", { class: `btn t-${action}${action === "delete" ? " danger" : ""}`, type: "button", title: `${a.label} the selected chats (${a.key})`, onclick: () => applyAction(action, selectedChats()) }, a.label);
+    const title = action === "move" ? `Move the selected chats into a project (${a.key})` : `${a.label} the selected chats (${a.key})`;
+    return h("button", { class: `btn t-${action}${action === "delete" ? " danger" : ""}`, type: "button", title, onclick: () => applyAction(action, selectedChats()) }, a.label);
   }
 
   // Everything a row's look depends on. Same signature, same row: no need to rebuild it.
   function rowSig(c) {
     const d = Store.data;
     const m = d.marks[c.id];
-    return [c.title, c.created, c.pinned ? 1 : 0, c.projectId ? 1 : 0, c.gptId ? 1 : 0, c.archived ? 1 : 0, m ? `${m.a}:${m.t || ""}` : "",
-      d.protect[c.id] ? 1 : 0, ui.sel.has(c.id) ? 1 : 0, d.seen[c.id] ? 1 : 0, c.id === ui.focusId ? 1 : 0, ui.fresh.has(c.id) ? 1 : 0,
-      ui.filters.scope === "projects" ? 1 : 0].join("\u0001");
+    return [c.title, c.created, c.pinned ? 1 : 0, c.projectId || "", c.projectId ? projectName(c.projectId) : "", c.gptId ? 1 : 0, c.archived ? 1 : 0,
+      m ? `${m.a}:${m.t || ""}:${m.p || ""}` : "", d.protect[c.id] ? 1 : 0, ui.sel.has(c.id) ? 1 : 0, d.seen[c.id] ? 1 : 0,
+      c.id === ui.focusId ? 1 : 0, ui.fresh.has(c.id) ? 1 : 0].join("\u0001");
   }
 
   // The hover buttons are built only for the row under the pointer, not for every row in the list.
@@ -2231,6 +2398,7 @@
       miniBtn(archiveAction, Boolean(mark && mark.a === archiveAction)),
       miniBtn("delete", Boolean(mark && mark.a === "delete")),
       miniBtn("rename", Boolean(mark && mark.a === "rename")),
+      c.archived || c.gptId ? null : miniBtn("move", Boolean(mark && mark.a === "move")),
       miniBtn("protect", prot));
     row.querySelector(".end").append(ui.actsEl);
   }
@@ -2248,13 +2416,17 @@
     if (fresh) cls.push("fresh");
     const chips = [];
     if (c.pinned) chips.push(h("span", { class: "chip", title: "Pinned" }, "Pinned"));
-    if (c.projectId && ui.filters.scope !== "projects") chips.push(h("span", { class: "chip", title: "In a project" }, "Project"));
+    if (c.projectId) chips.push(h("span", { class: "chip", title: `In the project ${quote(projectName(c.projectId))}` }, projectName(c.projectId, 22)));
     if (c.gptId) chips.push(h("span", { class: "chip", title: "Chat with a custom GPT" }, "GPT"));
     const cb = h("input", { type: "checkbox", class: "cb", tabindex: "-1", "aria-label": "Select", disabled: prot });
     cb.checked = ui.sel.has(c.id);
     let tag = null;
     if (prot) tag = h("span", { class: `mark prot${fresh ? " fresh" : ""}`, title: "Protected: Triage won't change this chat" }, icon("shield", 13), "Protected");
     else if (mark && mark.a === "rename") tag = h("span", { class: `mark${fresh ? " fresh" : ""}`, title: `Rename to ${quote(mark.t)}` }, "Rename");
+    else if (mark && mark.a === "move") {
+      const to = mark.p ? mark.pn || "Project" : "No Project";
+      tag = h("span", { class: `mark${fresh ? " fresh" : ""}`, title: mark.p ? `Move to the project ${quote(to)}` : "Take out of its project" }, icon("folder", 13), to);
+    }
     else if (mark) tag = h("span", { class: `mark ${mark.a}${fresh ? " fresh" : ""}` }, mark.a === "delete" ? null : icon(ACTION[mark.a].icon, 13), ACTION[mark.a].label);
     // The new name sits right after the old one, so the pair reads as one change.
     const renameTo = !prot && mark && mark.a === "rename" ? mark.t : null;
@@ -2302,10 +2474,11 @@
     return h("div", { class: "idle" }, h("div", { class: "legend" },
       h("div", { class: "h" }, any ? "Pick a chat to read it here" : "Your chats will show up here"),
       h("div", { class: "grid" },
-        pair("↑ ↓", "Move"), pair("D", "Delete"),
+        pair("↑ ↓", "Browse"), pair("D", "Delete"),
         pair("⏎", "Read"), pair("A", "Archive"),
         pair("Space", "Select"), pair("R", "Rename"),
-        pair("/", "Search"), pair("P", "Protect")),
+        pair("/", "Search"), pair("M", "Move to Project"),
+        pair("?", "Shortcuts"), pair("P", "Protect")),
       h("div", { class: "f" }, "Nothing changes in ChatGPT until you run the queue.")));
   }
 
@@ -2329,24 +2502,26 @@
     const actionBtn = (action) => {
       const a = ACTION[action];
       const on = action === "protect" ? prot : Boolean(mark && mark.a === action);
-      const label = action === "protect" ? (prot ? "Unprotect" : "Protect") : on ? `Unmark ${a.label}` : a.label;
+      const label = action === "protect" ? (prot ? "Unprotect" : "Protect") : on && action !== "move" ? `Unmark ${a.label}` : a.label;
       return h("button", { class: `btn${on ? " on" : ""}${action === "delete" ? " danger" : ""}`, type: "button", title: `${label} (${a.key})`, onclick: () => applyAction(action, [c]) },
         h("span", { class: "tl" }, label, h("span", { class: "key" }, a.key)));
     };
     const open = TEST.demo
       ? h("button", { class: "btn quiet", type: "button", title: "Open in ChatGPT", onclick: () => ui.toast("In the demo, chats don't open in ChatGPT.") }, h("span", { class: "lbl" }, "Open in ChatGPT"), icon("external", 15))
       : h("a", { class: "btn quiet", href: `/c/${encodeURIComponent(c.id)}`, target: "_blank", rel: "noopener noreferrer", title: "Open in ChatGPT" }, h("span", { class: "lbl" }, "Open in ChatGPT"), icon("external", 15));
-    put(el.actionsCol, actionBtn("delete"), c.archived ? actionBtn("unarchive") : actionBtn("archive"), actionBtn("rename"), actionBtn("protect"), h("div", { class: "spacer" }), open);
+    put(el.actionsCol, actionBtn("delete"), c.archived ? actionBtn("unarchive") : actionBtn("archive"), actionBtn("rename"),
+      c.archived || c.gptId ? null : actionBtn("move"), actionBtn("protect"), h("div", { class: "spacer" }), open);
 
     let state = null;
     if (prot) state = h("span", { class: "state" }, "Protected");
     else if (mark && mark.a === "rename") state = h("span", { class: "state" }, "Queued: Rename → ", h("span", { class: "v" }, mark.t));
+    else if (mark && mark.a === "move") state = h("span", { class: "state" }, "Queued: Move → ", h("span", { class: "v" }, mark.p ? mark.pn || "Project" : "No Project"));
     else if (mark) state = h("span", { class: `state ${mark.a}` }, `Queued: ${ACTION[mark.a].label}${mark.a === "delete" ? " · Can't be undone" : ""}`);
     put(el.metaCol,
       h("span", null, "Created ", num(isoDate(c.created))),
       c.updated ? h("span", null, "Last Used ", num(isoDate(c.updated))) : null,
       conv ? h("span", null, num(conv.messages.length), conv.messages.length === 1 ? " Message" : " Messages") : null,
-      c.projectId ? h("span", null, "Project") : null,
+      c.projectId ? h("span", { title: projectName(c.projectId) }, "In ", projectName(c.projectId, 28)) : null,
       c.gptId ? h("span", null, "Custom GPT") : null,
       c.pinned ? h("span", null, "Pinned") : null,
       c.archived ? h("span", null, "Archived") : null,
@@ -2398,6 +2573,9 @@
     } else if (r && ACTIVE.includes(r.status)) {
       cls = r.status === "waiting" ? "wait" : "busy";
       text = { waiting: waiting(), backup: "Backing Up", verifying: "Checking" }[r.status] || `Running ${r.i}/${r.jobs.length}`;
+    } else if (r && r.status === "saving") {
+      cls = "hold";
+      text = "Save Backup";
     } else if (r && r.status === "paused") {
       cls = "hold";
       text = "Paused";
@@ -2433,6 +2611,9 @@
     if (r && ACTIVE.includes(r.status)) {
       dot = r.status === "waiting" ? "wait live" : "go live";
       info = r.status === "waiting" ? `Wait ${clock(Api.cooldownLeft())}` : `${r.i}/${r.jobs.length}`;
+    } else if (r && r.status === "saving") {
+      dot = "wait";
+      info = "Save Backup";
     } else if (r && r.status === "paused") {
       dot = "wait";
       info = "Paused";
@@ -2586,11 +2767,12 @@
     const done = r.results.filter((x) => x.status === "done").length;
     const failed = r.results.filter((x) => x.status === "failed").length;
     const unconfirmed = r.results.filter((x) => x.status === "unconfirmed").length;
+    const held = r.results.filter((x) => x.status === "held").length;
     const live = ACTIVE.includes(r.status);
     const finished = r.status === "done" || r.status === "stopped";
-    const trouble = failed || unconfirmed;
+    const trouble = failed || unconfirmed || held;
     const [label, light] = {
-      backup: ["Backing Up", "go"], running: ["Running", "go"], waiting: ["Waiting", "wait"], verifying: ["Checking", "go"],
+      backup: ["Backing Up", "go"], saving: ["Backup Ready", "hold"], running: ["Running", "go"], waiting: ["Waiting", "wait"], verifying: ["Checking", "go"],
       paused: ["Paused", "hold"], done: trouble ? ["Done, Needs a Look", "bad"] : ["Done", "ok"], stopped: ["Stopped", "hold"],
     }[r.status] || ["Queue", ""];
 
@@ -2608,6 +2790,13 @@
     let say = "";
     if (waiting) say = `ChatGPT asked Triage to slow down. It carries on by itself at ${fmtClock(Store.data.cooldownUntil)}.`;
     else if (r.status === "backup") say = r.note;
+    else if (r.status === "saving") {
+      const kept = Object.keys(r.held || {}).length;
+      say = r.backupDownloaded
+        ? `Your browser downloaded ${r.backupDownloaded}, or asked where to save it. Check the file is there, then carry on.`
+        : `The backup of ${plural(Runner.backup.length, "chat")} is ready. Save it to start deleting. Nothing has changed in ChatGPT yet.`;
+      if (kept) say += ` ${plural(kept, "chat")} couldn't be backed up, so ${kept === 1 ? "it" : "they"} won't be deleted.`;
+    }
     else if (r.status === "verifying") say = r.note || "Double-checking with ChatGPT.";
     else if (r.status === "running") {
       const gap = Store.data.settings.gap;
@@ -2617,6 +2806,7 @@
       const bits = [`${plural(done, "change")} made`];
       if (failed) bits.push(`${failed} failed`);
       if (unconfirmed) bits.push(`${unconfirmed} didn't stick and ${unconfirmed === 1 ? "is" : "are"} marked again`);
+      if (held) bits.push(`${held} not deleted because ${held === 1 ? "its backup" : "their backups"} failed, still marked`);
       if (r.status === "stopped" && r.i < total) bits.push(`${total - r.i} not reached, still marked`);
       say = `${bits.join(". ")}.`;
     }
@@ -2637,7 +2827,7 @@
     else if (v.browse != null && live) why = "Looking back. It returns to the current chat in a moment.";
     setText(v.why, why);
 
-    const btnSig = live ? "live" : r.status === "paused" ? `paused:${ui.lockedElsewhere}` : `end:${Runner.backup.length}`;
+    const btnSig = live ? "live" : r.status === "paused" ? `paused:${ui.lockedElsewhere}` : r.status === "saving" ? `saving:${r.backupDownloaded || ""}` : `end:${Runner.backup.length}`;
     if (btnSig !== v.btnSig) {
       v.btnSig = btnSig;
       const btns = [];
@@ -2646,6 +2836,14 @@
         btns.push(h("button", { class: "btn quiet", type: "button", onclick: () => Runner.stop() }, "Stop"));
       } else if (r.status === "paused") {
         btns.push(h("button", { class: "btn primary", type: "button", disabled: ui.lockedElsewhere, onclick: () => Runner.resume() }, "Resume"));
+        btns.push(h("button", { class: "btn quiet", type: "button", onclick: () => Runner.stop() }, "Stop"));
+      } else if (r.status === "saving") {
+        if (r.backupDownloaded) {
+          btns.push(h("button", { class: "btn primary", type: "button", onclick: () => Runner.backupSaved(r.backupDownloaded) }, "It's Saved, Continue"));
+          btns.push(h("button", { class: "btn quiet", type: "button", onclick: () => Runner.saveBackup() }, "Download Again"));
+        } else {
+          btns.push(h("button", { class: "btn primary", type: "button", onclick: () => Runner.saveBackup() }, icon("download", 15), "Save Backup"));
+        }
         btns.push(h("button", { class: "btn quiet", type: "button", onclick: () => Runner.stop() }, "Stop"));
       } else {
         btns.push(h("button", { class: "btn primary", type: "button", onclick: () => Runner.dismiss() }, "Close"));
@@ -2660,7 +2858,7 @@
     if (r.results.length > v.said) {
       const x = r.results[r.results.length - 1];
       v.said = r.results.length;
-      v.live.textContent = `${x.status === "failed" ? "Failed" : ACTION[x.action].past}: ${x.title || "Untitled"}. ${r.i} of ${total}.`;
+      v.live.textContent = `${x.status === "failed" ? "Failed" : x.status === "held" ? "Kept" : ACTION[x.action].past}: ${x.title || "Untitled"}. ${r.i} of ${total}.`;
     } else if (label !== v.label) {
       v.live.textContent = `${label}. ${say}`;
     }
@@ -2701,9 +2899,9 @@
     let glyph = "";
     let verb = a.label;
     if (x) {
-      kind = x.status === "failed" ? "bad" : x.status === "unconfirmed" ? "unsure" : "ok";
-      glyph = { done: "✓", failed: "✕", unconfirmed: "~" }[x.status] || "·";
-      verb = x.status === "failed" ? "Failed" : x.status === "unconfirmed" ? "Check" : x.note === "It was already gone." ? "Gone" : a.past;
+      kind = x.status === "failed" ? "bad" : x.status === "unconfirmed" || x.status === "held" ? "unsure" : "ok";
+      glyph = { done: "✓", failed: "✕", unconfirmed: "~", held: "–" }[x.status] || "·";
+      verb = x.status === "failed" ? "Failed" : x.status === "unconfirmed" ? "Check" : x.status === "held" ? "Kept" : x.note === "It was already gone." ? "Gone" : a.past;
     } else if (i === r.i && r.status === "running") {
       kind = "now";
       if (r.nextAt) verb = `In ${Math.max(0, Math.ceil((r.nextAt - now()) / SEC))}s`;
@@ -2723,7 +2921,8 @@
       put(g, glyph === "spin" ? spinner() : glyph);
     }
     setText(vb, verb);
-    setText(ttl, `${job.title || "Untitled"}${job.action === "rename" && job.newTitle ? ` → ${job.newTitle}` : ""}`);
+    const to = job.action === "rename" && job.newTitle ? ` → ${job.newTitle}` : job.action === "move" ? ` → ${job.project ? job.projectName || "Project" : "No Project"}` : "";
+    setText(ttl, `${job.title || "Untitled"}${to}`);
   }
 
   // ---------------------------------------------------------------------------
@@ -2769,6 +2968,10 @@
       const why = whyNot(targets[0], "rename");
       if (why) ui.toast(why);
       else openRename(targets[0]);
+      return;
+    }
+    if (action === "move") {
+      openMove(targets, { advance });
       return;
     }
     if (targets.length === 1 && d.marks[targets[0].id] && d.marks[targets[0].id].a === action) {
@@ -3061,6 +3264,10 @@
         handled();
         applyAction("clear", targets());
         break;
+      case "m":
+        handled();
+        applyAction("move", targets(), { advance: single() });
+        break;
       case "/":
         handled();
         ui.el.search.focus();
@@ -3164,6 +3371,113 @@
     input.select();
   }
 
+  // Picks the project for one chat or many. The move is queued like any other change.
+  async function openMove(targets, { advance = false } = {}) {
+    const movable = targets.filter((c) => !whyNot(c, "move"));
+    if (!movable.length) {
+      ui.toast(whyNot(targets[0], "move"));
+      return;
+    }
+    if (!Data.projects) {
+      ui.toast("Loading your projects.");
+      await refreshProjects();
+      if (!Data.projects) {
+        ui.toast(Data.projectsError || "Couldn't load your projects. Try again in a moment.");
+        return;
+      }
+    }
+    const options = Data.projects.slice();
+    if (movable.some((c) => c.projectId)) options.push({ id: "", name: "No Project" });
+    if (!options.length) {
+      ui.toast("You don't have any projects in ChatGPT yet. Make one there, then reload the list here.");
+      return;
+    }
+    const d = Store.data;
+    const marked = movable.filter((c) => d.marks[c.id] && d.marks[c.id].a === "move");
+    const allIn = (id) => movable.every((c) => (c.projectId || "") === id);
+    const pick = (o) => {
+      queueMove(movable, o, targets.length - movable.length);
+      closeModal();
+      if (advance && targets.length === 1) move(1);
+    };
+    const opts = options.map((o) => h("button", { class: "opt", type: "button", "data-name": o.name.toLowerCase(), onclick: () => pick(o) },
+      icon(o.id ? "folder" : "x", 16), h("span", { class: "nm", dir: "auto" }, o.name), allIn(o.id) ? h("span", { class: "cur" }, "Here Now") : null));
+    const none = h("div", { class: "none", hidden: true }, "No projects match.");
+    const list = h("div", { class: "picks" }, opts, none);
+    const shown = () => opts.filter((b) => !b.hidden);
+    list.addEventListener("keydown", (e) => {
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      e.preventDefault();
+      e.stopPropagation();
+      const vis = shown();
+      const i = vis.indexOf(e.composedPath()[0]);
+      const next = vis[clamp(i + (e.key === "ArrowDown" ? 1 : -1), 0, vis.length - 1)];
+      if (next) next.focus();
+    });
+    let filter = null;
+    if (options.length > 7) {
+      filter = h("input", { type: "text", placeholder: "Filter projects", "aria-label": "Filter projects", class: "filter" });
+      filter.addEventListener("input", () => {
+        const q = filter.value.trim().toLowerCase();
+        for (const b of opts) b.hidden = Boolean(q) && !b.dataset.name.includes(q);
+        none.hidden = shown().length > 0;
+      });
+      filter.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === "ArrowDown") {
+          const first = shown()[0];
+          if (!first) return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.key === "Enter") first.click();
+          else first.focus();
+        }
+      });
+    }
+    const n = movable.length;
+    const lead = n === 1 ? quote(movable[0].title) : `${n} chats`;
+    const skipped = targets.length - n;
+    modal(n === 1 ? "Move to Project" : `Move ${n} Chats to a Project`, [
+      h("p", null, `Where should ${lead} go?${skipped ? ` ${plural(skipped, "chat")} can't be moved and ${skipped === 1 ? "is" : "are"} left out.` : ""}`),
+      filter, list,
+      h("p", { class: "hint", style: "margin-top:12px" }, "The move is queued. ChatGPT only changes when you run the queue."),
+    ], [
+      marked.length ? [n === 1 ? "Clear Move" : `Clear ${marked.length} Moves`, "quiet", () => {
+        for (const c of marked) delete d.marks[c.id];
+        Store.save();
+        ui.renderAll();
+      }] : null,
+      ["Cancel"],
+    ].filter(Boolean));
+  }
+
+  function queueMove(chats, o, skipped) {
+    const d = Store.data;
+    let applied = 0;
+    let already = 0;
+    for (const c of chats) {
+      if ((c.projectId || "") === o.id) {
+        if (d.marks[c.id] && d.marks[c.id].a === "move") delete d.marks[c.id];
+        already += 1;
+        continue;
+      }
+      d.marks[c.id] = { a: "move", title: c.title, p: o.id, pn: o.id ? o.name : "", at: now() };
+      ui.fresh.add(c.id);
+      applied += 1;
+    }
+    Store.save();
+    const where = o.id ? quote(o.name) : "out of their projects";
+    if (chats.length > 1 || skipped) {
+      ui.sel.clear();
+      const bits = [applied ? `Queued ${plural(applied, "chat")} to move ${o.id ? `to ${where}` : where}.` : ""];
+      if (already) bits.push(`${already} already ${already === 1 ? "is" : "are"} there.`);
+      if (skipped) bits.push(`${skipped} can't be moved.`);
+      ui.toast(bits.filter(Boolean).join(" "));
+    } else if (already) {
+      ui.toast(o.id ? `It's already in ${where}.` : "It isn't in a project.");
+    }
+    ui.renderAll();
+  }
+
   function confirmRun() {
     if (Runner.isActive() || Store.data.run) return;
     if (Api.cooldownLeft() > 0) {
@@ -3172,20 +3486,23 @@
     }
     const jobs = Runner.buildJobs();
     if (!jobs.length) return;
-    const n = { delete: 0, archive: 0, unarchive: 0, rename: 0 };
+    const n = { delete: 0, archive: 0, unarchive: 0, rename: 0, move: 0 };
     for (const j of jobs) n[j.action] += 1;
     const gap = Store.data.settings.gap;
-    const rows = ["delete", "archive", "unarchive", "rename"].filter((a) => n[a]).map((a) => h("div", { class: a === "delete" ? "del" : "" },
-      h("span", null, ACTION[a].label, a === "delete" ? h("span", { class: "x" }, "Permanent · ChatGPT can't restore deleted chats") : null),
+    const KINDS = ["delete", "archive", "unarchive", "rename", "move"];
+    const kindLabel = (a) => (a === "move" ? "Move to Project" : ACTION[a].label);
+    const rows = KINDS.filter((a) => n[a]).map((a) => h("div", { class: a === "delete" ? "del" : "" },
+      h("span", null, kindLabel(a), a === "delete" ? h("span", { class: "x" }, "Permanent · ChatGPT can't restore deleted chats") : null),
       h("span", { class: "n" }, String(n[a]))));
     // Counts alone can't catch the wrong chat, so the dialog lists them. Deletes can't be undone, so they come first and open.
     const review = h("details", { class: "review" },
       h("summary", null, icon("chevron", 14), `Review the ${plural(jobs.length, "chat")}`),
-      h("div", { class: "items" }, ["delete", "archive", "unarchive", "rename"].filter((a) => n[a]).map((a) => {
+      h("div", { class: "items" }, KINDS.filter((a) => n[a]).map((a) => {
         const group = jobs.filter((j) => j.action === a);
         const item = (j) => {
           const c = Data.byId.get(j.id);
-          const name = `${j.title || "Untitled"}${a === "rename" ? ` → ${j.newTitle}` : ""}`;
+          const to = a === "rename" ? ` → ${j.newTitle}` : a === "move" ? ` → ${j.project ? j.projectName || "Project" : "No Project"}` : "";
+          const name = `${j.title || "Untitled"}${to}`;
           return h("div", { class: "it" }, h("span", { class: "d" }, isoDate(c && c.created)), h("span", { class: "t", dir: "auto", title: name }, name));
         };
         // Thousands of names would slow the dialog down, so long groups show 100 until asked.
@@ -3200,7 +3517,7 @@
           }, `Show All ${group.length}`);
           box.append(more);
         }
-        return [h("div", { class: `grp${a === "delete" ? " del" : ""}` }, `${ACTION[a].label} · ${n[a]}`), box];
+        return [h("div", { class: `grp${a === "delete" ? " del" : ""}` }, `${kindLabel(a)} · ${n[a]}`), box];
       })));
     review.open = n.delete > 0;
     const backup = h("input", { type: "checkbox" });
@@ -3212,7 +3529,7 @@
       h("div", { class: "eta" }, "One change every ", h("span", { class: "num" }, paceHere(gap)), paceNote(gap), ` · ${timeLeft(jobs.length * gap * SCALE)}`),
       h("p", { class: "hint" }, "If ChatGPT says \"too many requests\", Triage waits as long as it asks and carries on by itself."),
     ];
-    if (n.delete) body.push(check(backup, `Back up the ${plural(n.delete, "chat")} being deleted first`, "Saves one Markdown file before anything is deleted."));
+    if (n.delete) body.push(check(backup, `Back up the ${plural(n.delete, "chat")} being deleted first`, "Saves one Markdown file. Deleting starts once you've saved it, and a chat that can't be backed up isn't deleted."));
     if (n.delete >= CFG.typeToConfirm) body.push(h("div", { class: "lbl" }, `Type ${n.delete} to Confirm`), typed);
     body.push(h("p", { class: "hint", style: "margin-top:16px" }, "Close other ChatGPT tabs and the desktop app while this runs. They share the same limit."));
     const box = modal("Run the Queue?", body, [
@@ -3266,7 +3583,7 @@
       h("div", { class: "lbl" }, "Appearance"),
       themeSeg(),
       h("div", { class: "lbl" }, "Safety"),
-      check(backup, "Back up chats before deleting them", "Saves a Markdown file of the chats in the delete queue before anything is deleted."),
+      check(backup, "Back up chats before deleting them", "Saves a Markdown file of the chats in the delete queue. Deleting starts once you've saved it, and a chat that can't be backed up isn't deleted."),
       check(pinned, "Include pinned chats in Select All", "Off by default, so select all never picks up pinned chats."),
       h("div", { class: "lbl" }, "Data"),
       h("div", { class: "stack" },
@@ -3306,6 +3623,7 @@
       ["D", "Queue delete, then go to the next chat"],
       ["A", "Queue archive (unarchive in Archived)"],
       ["R", "Queue a new name"],
+      ["M", "Queue a move to a project"],
       ["P", "Protect, so it's never touched"],
       ["C", "Clear the queued change"],
       ["/", "Search"],
@@ -3319,7 +3637,7 @@
       h("div", { class: "lbl" }, "The Limit"),
       h("p", null, "One change at a time, with a pause between each. If ChatGPT says \"too many requests\", Triage stops every request, waits as long as ChatGPT asks (longer each time if it doesn't say), then carries on with the same chat."),
       h("div", { class: "lbl" }, "Safety"),
-      h("p", null, "Project and pinned chats stay out of Main and select all. Deletes can be backed up first, and big deletes ask you to type the number. At the end, Triage reloads your list to check the changes stuck."),
+      h("p", null, "Project and pinned chats stay out of Main and select all. Deletes can be backed up first: nothing is deleted until you've saved the backup, and a chat that can't be backed up isn't deleted. Big deletes ask you to type the number. At the end, Triage reloads your list to check the changes stuck."),
       h("div", { class: "lbl" }, "Privacy"),
       h("p", null, "Triage runs in your browser and only talks to chatgpt.com. The Network button shows every request it sends."),
       h("p", { class: "hint" }, `Triage ${VERSION} · `, h("a", { href: HOMEPAGE, target: "_blank", rel: "noopener noreferrer", style: "text-decoration:underline" }, "Source on GitHub"), " · Not affiliated with OpenAI"),
@@ -3328,12 +3646,12 @@
 
   function exportList() {
     const d = Store.data;
-    const rows = [["id", "title", "created", "last_used", "where", "archived", "pinned", "queued", "new_title", "protected", "read"]];
+    const rows = [["id", "title", "created", "last_used", "where", "project", "archived", "pinned", "queued", "new_title", "move_to", "protected", "read"]];
     for (const c of [...Data.active, ...Data.archived]) {
       const m = d.marks[c.id];
       rows.push([c.id, c.title, c.created ? new Date(c.created).toISOString() : "", c.updated ? new Date(c.updated).toISOString() : "",
-        c.projectId ? "project" : c.gptId ? "custom GPT" : "main", c.archived ? "yes" : "", c.pinned ? "yes" : "",
-        m ? m.a : "", m && m.t ? m.t : "", d.protect[c.id] ? "yes" : "", d.seen[c.id] ? "yes" : ""]);
+        c.projectId ? "project" : c.gptId ? "custom GPT" : "main", c.projectId ? projectName(c.projectId) : "", c.archived ? "yes" : "", c.pinned ? "yes" : "",
+        m ? m.a : "", m && m.t ? m.t : "", m && m.a === "move" ? (m.p ? m.pn : "No Project") : "", d.protect[c.id] ? "yes" : "", d.seen[c.id] ? "yes" : ""]);
     }
     download(`chatgpt-chat-list-${fileStamp()}.csv`, csv(rows), "text/csv");
   }
@@ -3341,9 +3659,10 @@
   function downloadReport() {
     const r = Store.data.run;
     if (!r) return;
-    const rows = [["id", "title", "action", "new_title", "result", "note", "time"]];
-    for (const x of r.results) rows.push([x.id, x.title, x.action, x.newTitle || "", x.status, x.note || "", new Date(x.at).toISOString()]);
-    for (const j of r.jobs.slice(r.i)) rows.push([j.id, j.title, j.action, j.newTitle || "", "not reached", "", ""]);
+    const rows = [["id", "title", "action", "new_title", "move_to", "result", "note", "time"]];
+    const moveTo = (x) => (x.action === "move" ? (x.project ? x.projectName || x.project : "No Project") : "");
+    for (const x of r.results) rows.push([x.id, x.title, x.action, x.newTitle || "", moveTo(x), x.status === "held" ? "not deleted (backup failed)" : x.status, x.note || "", new Date(x.at).toISOString()]);
+    for (const j of r.jobs.slice(r.i)) rows.push([j.id, j.title, j.action, j.newTitle || "", moveTo(j), "not reached", "", ""]);
     download(`chatgpt-triage-report-${fileStamp()}.csv`, csv(rows), "text/csv");
   }
 

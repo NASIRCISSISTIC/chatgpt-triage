@@ -1,13 +1,13 @@
 <!-- The long description on Greasy Fork (greasyfork.org/scripts/597323). Greasy Fork syncs it from this file. -->
 
-**Bulk delete, archive and rename your ChatGPT chats, without the "Too many requests" lockout.**
+**Bulk delete, archive, rename and move your ChatGPT chats into projects, without the "Too many requests" lockout.**
 
 ChatGPT has no way to select several chats at once, and deleting them quickly gets you this:
 
 > Too many requests. You're making requests too quickly. We've temporarily limited access to your conversations to protect your data.
 
 Triage adds a cleanup workspace to chatgpt.com.
-- You go through your chats oldest first, reading each one in a side panel, and mark it: delete, archive, rename or protect.
+- You go through your chats oldest first, reading each one in a side panel, and mark it: delete, archive, rename, move to a project, or protect.
 - Nothing changes until you press **Run Queue**.
 - Triage then makes one change at a time. If ChatGPT says "too many requests", Triage stops, waits as long as ChatGPT asks, and carries on by itself.
 
@@ -18,14 +18,15 @@ Triage adds a cleanup workspace to chatgpt.com.
 ## What It Does
 
 - **Read before you decide.** Click a chat or move with the arrow keys, and the whole conversation opens next to the list.
-- **One queue for everything.** Delete, archive, unarchive and rename, marked with a click or a single key (`D`, `A`, `R`).
+- **One queue for everything.** Delete, archive, unarchive, rename and move, marked with a click or a single key (`D`, `A`, `R`, `M`).
+- **Move chats into projects.** Press `M`, or select many chats and press **Move**, then pick one of your ChatGPT projects. **No Project** takes chats out of one.
 - **Protect what matters.** Press `P` and a chat can never be queued, not even by Select All.
 - **Project chats stay out of the way.** The main list leaves out chats that live in Projects, so a cleanup can't empty a project by accident.
 - **Pick up where you left off.** Marks, protected chats and read chats are saved in your browser. An interrupted run resumes from the same chat.
 - **Built for big cleanups.** Filters, search, three sort orders, shift-click ranges, Select All and Invert. It stays fast with thousands of chats.
 - **See exactly what will happen.** Before a run, Triage lists every chat that's about to change, deletions first.
-- **A backup before deleting.** Triage can save every chat about to be deleted to a Markdown file first.
-- **Checks its own work.** At the end of a run, Triage reloads your list and flags anything that didn't actually go.
+- **A backup before deleting.** Triage can save every chat about to be deleted to a Markdown file first. Deleting only starts once you've saved it, and a chat that can't be backed up isn't deleted.
+- **Checks its own work.** At the end of a run, Triage reloads your list and flags any change that didn't stick.
 - **Light or dark.** Triage matches ChatGPT's theme, or you can switch it yourself.
 
 ![The confirmation before a run, listing the chats about to change](https://nasircissistic.github.io/chatgpt-triage/docs/confirm.png)
@@ -51,6 +52,7 @@ After installing, go to chatgpt.com. A **Triage** button appears in the bottom-r
 | `D` | Queue delete, then move on |
 | `A` | Queue archive (unarchive in the Archived tab) |
 | `R` | Queue a new name |
+| `M` | Queue a move to a project |
 | `P` | Protect or unprotect |
 | `C` | Clear the queued change |
 | `/` | Search |
@@ -71,6 +73,7 @@ After installing, go to chatgpt.com. A **Triage** button appears in the bottom-r
 - **Unofficial.** Triage uses ChatGPT's private web API, which OpenAI can change at any time.
 - **Built for personal accounts.** Team, Business and Enterprise workspaces haven't been tested.
 - **ChatGPT's list can lag.** After an archive or unarchive, ChatGPT's own chat list can take several minutes to catch up. Triage asks about the chat itself before calling a change failed.
+- **Moving into projects.** Archived chats and chats with a custom GPT can't be moved. ChatGPT counts a move as using the chat, so moved chats jump to the top of its recent chats.
 - **One tab at a time.** Other ChatGPT tabs and the desktop app share the same request limit, so close them during a long run.
 
 Bug reports and ideas are welcome on [GitHub Issues](https://github.com/NASIRCISSISTIC/chatgpt-triage/issues).

@@ -13,7 +13,8 @@
  *   ?fail=0.2            make 20% of changes fail with HTTP 500
  *   ?ghost=0.3           make 30% of changes report success but not take effect
  *   ?chats=3000          a bigger account, to try long lists
- *   ?listlag=20          the chat list keeps showing archived and deleted chats for 20 s, like chatgpt.com
+ *   ?listlag=20          the chat list keeps showing archived, deleted and moved chats as they were for 20 s, like chatgpt.com
+ *   ?readfail=0.3        30% of chats can't be read (HTTP 500 every time), to try a backup that fails
  */
 (function mockChatGPT() {
   "use strict";
@@ -47,7 +48,10 @@
   // ?listlag=20: like the real chatgpt.com, the list shows the old state of a changed chat for a while,
   // even though the chat itself has changed. Found in the first live test (2026-09-25).
   const LIST_LAG = ((Number(params.get("listlag")) || 0) * 1000) / SPEED;
-  const lagged = new Map(); // id -> { is_visible, is_archived, until }
+  const lagged = new Map(); // id -> { is_visible, is_archived, gizmo_id, conversation_template_id, until }
+  // ?readfail=0.3: the same 30% of chats always fail to load, so their backup fails too.
+  const READ_FAIL = Math.min(1, Number(params.get("readfail")) || 0);
+  const unreadable = (id) => READ_FAIL > 0 && (id.split("").reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) % 1000, 7) / 1000) < READ_FAIL;
 
   const stats = { requests: 0, limited: 0, unauthorized: 0, failed: 0, byPath: {} };
   const recent = [];
@@ -93,6 +97,9 @@
   const PROJECTS = [
     { id: "g-p-demo-thesis", name: "Thesis", topics: ["Thesis: literature review outline", "Thesis: methods section feedback", "Thesis: citation formatting", "Thesis: abstract draft", "Thesis: defence practice questions"] },
     { id: "g-p-demo-renovation", name: "Home renovation", topics: ["Renovation: kitchen budget", "Renovation: choosing floor tiles", "Renovation: contractor questions", "Renovation: paint colours for north rooms"] },
+    // Empty projects, so there's somewhere to move chats to.
+    { id: "g-p-demo-work", name: "Work", topics: [] },
+    { id: "g-p-demo-cooking", name: "Cooking", topics: [] },
   ];
   const GPTS = ["g-demo-code-helper", "g-demo-travel-planner"];
 
@@ -295,19 +302,31 @@
       const archived = url.searchParams.get("is_archived") === "true";
       const listed = (c) => {
         const old = lagged.get(c.id);
-        return old && Date.now() < old.until ? old : c;
+        return old && Date.now() < old.until ? { ...c, ...old } : c;
       };
       const rows = db.convs
-        .filter((c) => listed(c).is_visible && listed(c).is_archived === archived)
+        .map(listed)
+        .filter((c) => c.is_visible && c.is_archived === archived)
         .sort((a, b) => b.updated - a.updated);
       return json(200, { items: rows.slice(offset, offset + limit).map(listItem), total: rows.length, limit, offset, has_missing_conversations: false });
+    }
+
+    // The user's projects, the way chatgpt.com's sidebar asks for them.
+    if (method === "GET" && path === "/backend-api/gizmos/snorlax/sidebar") {
+      return json(200, {
+        items: PROJECTS.map((p) => ({ gizmo: { gizmo: { id: p.id, gizmo_type: "snorlax", display: { name: p.name, description: "" } }, tools: [], files: [] }, conversations: { items: [] } })),
+        cursor: null,
+      });
     }
 
     const m = path.match(/^\/backend-api\/conversation\/([^/]+)$/);
     if (m) {
       const c = find(decodeURIComponent(m[1]));
       if (!c) return json(404, { detail: "Can't load conversation" });
-      if (method === "GET") return json(200, detail(c));
+      if (method === "GET") {
+        if (unreadable(c.id)) return json(500, { detail: "Simulated server error" });
+        return json(200, detail(c));
+      }
       if (method === "PATCH") {
         if (FAIL && Math.random() < FAIL) {
           stats.failed += 1;
@@ -315,8 +334,16 @@
         }
         if (GHOST && Math.random() < GHOST) return json(200, { success: true });
         const body = JSON.parse(init.body || "{}");
-        if (LIST_LAG && (body.is_visible === false || typeof body.is_archived === "boolean")) {
-          lagged.set(c.id, { is_visible: c.is_visible, is_archived: c.is_archived, until: Date.now() + LIST_LAG });
+        // Moving a chat: a project's id puts it there, an empty id takes it out.
+        if (typeof body.gizmo_id === "string" && body.gizmo_id && !PROJECTS.some((p) => p.id === body.gizmo_id)) {
+          return json(404, { detail: "Project not found" });
+        }
+        if (LIST_LAG && (body.is_visible === false || typeof body.is_archived === "boolean" || typeof body.gizmo_id === "string")) {
+          lagged.set(c.id, { is_visible: c.is_visible, is_archived: c.is_archived, gizmo_id: c.gizmo_id, conversation_template_id: c.conversation_template_id, until: Date.now() + LIST_LAG });
+        }
+        if (typeof body.gizmo_id === "string") {
+          c.gizmo_id = body.gizmo_id || null;
+          c.conversation_template_id = body.gizmo_id || null;
         }
         if (body.is_visible === false) c.is_visible = false;
         if (typeof body.is_archived === "boolean") c.is_archived = body.is_archived;

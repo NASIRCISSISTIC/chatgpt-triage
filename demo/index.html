@@ -59,7 +59,7 @@
         <button id="reset" type="button">Reset demo</button>
       </div>
       <div class="note">
-        Try it: move with <kbd>↑</kbd> <kbd>↓</kbd>, press <kbd>D</kbd> to queue a delete, <kbd>A</kbd> to archive, <kbd>R</kbd> to rename, then Run Queue.
+        Try it: move with <kbd>↑</kbd> <kbd>↓</kbd>, press <kbd>D</kbd> to queue a delete, <kbd>A</kbd> to archive, <kbd>R</kbd> to rename, <kbd>M</kbd> to move into a project, then Run Queue.
         Waits run <span id="speed"></span> faster than the real thing so the demo doesn't take all day.
         Turn on simulated limits to watch Triage handle ChatGPT's "Too many requests".
       </div>
@@ -79,6 +79,7 @@
       [0, 1, 5, 9, 11, 14].forEach(function (i) { mark(i, "delete"); });
       [2, 8, 13].forEach(function (i) { mark(i, "archive"); });
       mark(6, "rename", "Postgres vs MySQL: what I decided");
+      marks[rows[4].id] = { a: "move", title: rows[4].title, p: "g-p-demo-work", pn: "Work", at: Date.now() };
       D.Store.data.protect[rows[3].id] = { title: rows[3].title, at: Date.now() };
       for (var i = 0; i < 12; i += 1) D.Store.data.seen[rows[i].id] = 1;
       D.ui.renderAll();
